@@ -9,14 +9,6 @@ from langdetect import detect
 from gtts import gTTS
 # import clipboard
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-# openai.api_key = os.getenv("OPENAI_API_KEY")
-# openai.api_key = st.text_input(
-#    label="$\\hspace{0.25em}\\texttt{Your OpenAI API Key}$",
-#    on_change=reset_conversation
-# )
-# st.write("(You can obtain an API key from https://beta.openai.com.)")
-
 # initial prompt for gpt3.5
 initial_prompt = [
     {"role": "system", "content": "You are a helpful assistant."}
@@ -224,20 +216,20 @@ def create_text(authen):
                 temperature=st.session_state.temp_value,
                 authen=authen
             )
+            st.write("**:blue[Human:]** " + user_input_stripped)
         except Exception as e:
             st.error(f"An error occurred: {e}", icon="🚨")
         st.session_state.pre_audio_bytes = audio_bytes
 
     if authen and not st.session_state.ignore_this and user_input_stripped != "":
-        st.write("**:blue[Human:]** " + user_input_stripped)
-        st.write("**:blue[AI:]** " + st.session_state.generated_text)
-
-        # TTS
-        lang = detect(st.session_state.generated_text)
-        tts = gTTS(text=st.session_state.generated_text, lang=lang)
-        text_audio_file = "files/output_text.wav"
-        tts.save(text_audio_file)
-        st.audio(text_audio_file)
+        if st.session_state.generated_text:
+            st.write("**:blue[AI:]** " + st.session_state.generated_text)
+            # TTS
+            lang = detect(st.session_state.generated_text)
+            tts = gTTS(text=st.session_state.generated_text, lang=lang)
+            text_audio_file = "files/output_text.wav"
+            tts.save(text_audio_file)
+            st.audio(text_audio_file)
 
         st.session_state.human_enq.append(user_input_stripped)
         st.session_state.ai_resp.append(st.session_state.generated_text)
@@ -292,20 +284,39 @@ def openai_create():
     """
     st.write("## 🎭 ChatGPT & DALL·E")
 
-    stored_pin = st.secrets["USER_PIN"]
-
     with st.sidebar:
         st.write("")
-        st.write("**Password**")
-        user_pin = st.text_input(
-            label="Enter password", type="password", label_visibility="collapsed"
+        st.write("**Choic of API key**")
+        choice_api = st.sidebar.radio(
+            "$\\hspace{0.25em}\\texttt{Choic of API}$",
+            ('Your key', 'My key'),
+            label_visibility="collapsed",
+            horizontal=True,
+            on_change=reset_conversation
         )
-        authen = user_pin == stored_pin
+
+        if choice_api == 'Your key':
+            st.write("**Your API Key**")
+            openai.api_key = st.text_input(
+                label="$\\hspace{0.25em}\\texttt{Your OpenAI API Key}$",
+                type="password",
+                label_visibility="collapsed"
+            )
+            # st.write("You can obtain an API key from https://beta.openai.com")
+            authen = True
+        else:
+            openai.api_key = st.secrets["OPENAI_API_KEY"]
+            stored_pin = st.secrets["USER_PIN"]
+            st.write("**Password**")
+            user_pin = st.text_input(
+                label="Enter password", type="password", label_visibility="collapsed"
+            )
+            authen = user_pin == stored_pin
 
         st.write("")
         st.write("**What to Generate**")
         option = st.sidebar.radio(
-            "$\\hspace{0.25em}\\texttt{What to generate$",
+            "$\\hspace{0.25em}\\texttt{What to generate}$",
             ('Text (GPT3.5)', 'Image (DALL·E)'),
             label_visibility="collapsed",
             # horizontal=True,
