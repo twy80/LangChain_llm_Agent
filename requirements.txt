@@ -1,11 +1,6 @@
-numpy
-scipy
-matplotlib
-scikit-image
-scikit-learn
-pillow
 openai
 streamlit
 audio-recorder-streamlit
 langdetect
 gTTS
+clipboard
