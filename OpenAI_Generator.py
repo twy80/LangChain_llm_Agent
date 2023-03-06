@@ -7,7 +7,7 @@ import streamlit as st
 from audio_recorder_streamlit import audio_recorder
 from langdetect import detect
 from gtts import gTTS
-import clipboard
+# import clipboard
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 # openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -104,11 +104,11 @@ def openai_create_image(description, size="512x512", authen=True):
 
 
 def reset_conversation():
-    to_clipboard = ""
-    for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
-        to_clipboard += "\nHuman: " + human + "\n"
-        to_clipboard += "\nAI: " + ai + "\n"
-    clipboard.copy(to_clipboard)
+    # to_clipboard = ""
+    # for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
+    #    to_clipboard += "\nHuman: " + human + "\n"
+    #    to_clipboard += "\nAI: " + ai + "\n"
+    # clipboard.copy(to_clipboard)
 
     st.session_state.generated_text = None
     st.session_state.prompt = initial_prompt
@@ -241,7 +241,7 @@ def create_text(authen):
 
         st.session_state.human_enq.append(user_input_stripped)
         st.session_state.ai_resp.append(st.session_state.generated_text)
-        clipboard.copy(st.session_state.generated_text)
+        # clipboard.copy(st.session_state.generated_text)
 
         # for i in range(len(st.session_state.ai_resp)-1, -1, -1):
         #    message(st.session_state.ai_resp[i].strip(), key=str(i))
