@@ -225,10 +225,11 @@ def create_text(authen):
         if st.session_state.generated_text:
             st.write("**:blue[AI:]** " + st.session_state.generated_text)
             # TTS
-            lang = detect(st.session_state.generated_text)
-            tts = gTTS(text=st.session_state.generated_text, lang=lang)
-            text_audio_file = "files/output_text.wav"
-            tts.save(text_audio_file)
+            with st.spinner("TTS in progress..."):
+                lang = detect(st.session_state.generated_text)
+                tts = gTTS(text=st.session_state.generated_text, lang=lang)
+                text_audio_file = "files/output_text.wav"
+                tts.save(text_audio_file)
             st.audio(text_audio_file)
 
         st.session_state.human_enq.append(user_input_stripped)
