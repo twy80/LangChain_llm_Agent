@@ -7,7 +7,6 @@ import streamlit as st
 from audio_recorder_streamlit import audio_recorder
 from langdetect import detect
 from gtts import gTTS
-from io import BytesIO
 # import clipboard
 
 # initial prompt for gpt3.5
@@ -213,8 +212,10 @@ def create_text(authen):
     )
     if authen and audio_bytes != st.session_state.pre_audio_bytes:
         try:
-            audio_data = BytesIO(audio_bytes)
-            audio_data.name = "recorded_audio.wav"
+            audio_file = "files/recorded_audio.wav"
+            with open(audio_file, "wb") as recorded_file:
+                recorded_file.write(audio_bytes)
+            audio_data = open(audio_file, "rb")
 
             transcript = openai.Audio.transcribe("whisper-1", audio_data)
 
@@ -237,9 +238,9 @@ def create_text(authen):
                 with st.spinner("TTS in progress..."):
                     lang = detect(st.session_state.generated_text)
                     tts = gTTS(text=st.session_state.generated_text, lang=lang)
-                    text_audio_file = BytesIO()
-                    tts.write_to_fp(text_audio_file)
-                st.audio(text_audio_file.getvalue())
+                    text_audio_file = "files/output_text.wav"
+                    tts.save(text_audio_file)
+                st.audio(text_audio_file)
 
         st.session_state.human_enq.append(user_input_stripped)
         st.session_state.ai_resp.append(st.session_state.generated_text)
