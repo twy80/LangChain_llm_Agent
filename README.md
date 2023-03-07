@@ -15,8 +15,10 @@
 
 * This page is written in python using the Streamlit framework.
 
-* TWY teaches engineering mathematics, signals and systems,
-  technical writing, etc., at Korea University.
+* Your OpenAI API key is required to run this code. You can obtain an API key
+  from https://platform.openai.com/account/api-keys. If, for some reason, you
+  do not want to obtain an API key but would still like to try this code,
+  you will need to request a password.
 
 ## Usage
 ```python
