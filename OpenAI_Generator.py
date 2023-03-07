@@ -328,6 +328,10 @@ def openai_create():
     else:
         create_image(authen)
 
+    with st.sidebar:
+        st.write("")
+        st.write("**:blue[Coded by T.-W. Yoon, 2023]**")
+
     if not authen:
         st.error("**Incorrect password. Please try again.**", icon="🚨")
 
