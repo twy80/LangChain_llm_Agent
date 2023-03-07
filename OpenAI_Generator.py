@@ -7,6 +7,7 @@ import streamlit as st
 from audio_recorder_streamlit import audio_recorder
 from langdetect import detect
 from gtts import gTTS
+# from io import BytesIO
 # import clipboard
 
 # initial prompt for gpt3.5
@@ -217,6 +218,9 @@ def create_text(authen):
                 recorded_file.write(audio_bytes)
             audio_data = open(audio_file, "rb")
 
+            # audio_data = BytesIO(audio_bytes)
+            # audio_data.name = "recorded_audio.wav"
+
             transcript = openai.Audio.transcribe("whisper-1", audio_data)
 
             user_input_stripped = transcript['text']
@@ -240,7 +244,10 @@ def create_text(authen):
                     tts = gTTS(text=st.session_state.generated_text, lang=lang)
                     text_audio_file = "files/output_text.wav"
                     tts.save(text_audio_file)
+                    # text_audio_file = BytesIO()
+                    # tts.write_to_fp(text_audio_file)
                 st.audio(text_audio_file)
+                # st.audio(text_audio_file.getvalue())
 
         st.session_state.human_enq.append(user_input_stripped)
         st.session_state.ai_resp.append(st.session_state.generated_text)
