@@ -152,6 +152,15 @@ def create_text(authen):
 
     with st.sidebar:
         st.write("")
+        st.write("**TTS Enabled**")
+        st.session_state.tts = st.radio(
+            "$\\hspace{0.08em}\\texttt{TTS}$",
+            ('Yes', 'No'),
+            horizontal=True,
+            on_change=ignore_this,
+            label_visibility="collapsed"
+        )
+        st.write("")
         st.write("**Temperature**")
         st.session_state.temp_value = st.slider(
             label="$\\hspace{0.08em}\\texttt{Temperature}\,$ (higher $\Rightarrow$ more random)",
@@ -225,12 +234,13 @@ def create_text(authen):
         if st.session_state.generated_text:
             st.write("**:blue[AI:]** " + st.session_state.generated_text)
             # TTS
-            with st.spinner("TTS in progress..."):
-                lang = detect(st.session_state.generated_text)
-                tts = gTTS(text=st.session_state.generated_text, lang=lang)
-                text_audio_file = "files/output_text.wav"
-                tts.save(text_audio_file)
-            st.audio(text_audio_file)
+            if st.session_state.tts == 'Yes':
+                with st.spinner("TTS in progress..."):
+                    lang = detect(st.session_state.generated_text)
+                    tts = gTTS(text=st.session_state.generated_text, lang=lang)
+                    text_audio_file = "files/output_text.wav"
+                    tts.save(text_audio_file)
+                st.audio(text_audio_file)
 
         st.session_state.human_enq.append(user_input_stripped)
         st.session_state.ai_resp.append(st.session_state.generated_text)
