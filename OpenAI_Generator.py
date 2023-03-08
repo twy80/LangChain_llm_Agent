@@ -211,51 +211,53 @@ def create_text(authen):
         # icon_name="user",
         icon_size="2x",
     )
-    if authen and audio_bytes != st.session_state.pre_audio_bytes:
-        try:
-            audio_file = "files/recorded_audio.wav"
-            with open(audio_file, "wb") as recorded_file:
-                recorded_file.write(audio_bytes)
-            audio_data = open(audio_file, "rb")
 
-            # audio_data = BytesIO(audio_bytes)
-            # audio_data.name = "recorded_audio.wav"
+    if not st.session_state.ignore_this:
+        if authen and audio_bytes != st.session_state.pre_audio_bytes:
+            try:
+                audio_file = "files/recorded_audio.wav"
+                with open(audio_file, "wb") as recorded_file:
+                    recorded_file.write(audio_bytes)
+                audio_data = open(audio_file, "rb")
 
-            transcript = openai.Audio.transcribe("whisper-1", audio_data)
+                # audio_data = BytesIO(audio_bytes)
+                # audio_data.name = "recorded_audio.wav"
 
-            user_input_stripped = transcript['text']
-            openai_create_text(
-                user_input_stripped,
-                temperature=st.session_state.temp_value,
-                authen=authen
-            )
-            st.write("**:blue[Human:]** " + user_input_stripped)
-        except Exception as e:
-            st.error(f"An error occurred: {e}", icon="🚨")
-        st.session_state.pre_audio_bytes = audio_bytes
+                transcript = openai.Audio.transcribe("whisper-1", audio_data)
 
-    if authen and not st.session_state.ignore_this and user_input_stripped != "":
-        if st.session_state.generated_text:
-            st.write("**:blue[AI:]** " + st.session_state.generated_text)
-            # TTS
-            if st.session_state.tts == 'Yes':
-                with st.spinner("TTS in progress..."):
-                    lang = detect(st.session_state.generated_text)
-                    tts = gTTS(text=st.session_state.generated_text, lang=lang)
-                    text_audio_file = "files/output_text.wav"
-                    tts.save(text_audio_file)
-                    # text_audio_file = BytesIO()
-                    # tts.write_to_fp(text_audio_file)
-                st.audio(text_audio_file)
-                # st.audio(text_audio_file.getvalue())
+                user_input_stripped = transcript['text']
+                openai_create_text(
+                    user_input_stripped,
+                    temperature=st.session_state.temp_value,
+                    authen=authen
+                )
+                st.write("**:blue[Human:]** " + user_input_stripped)
+            except Exception as e:
+                st.error(f"An error occurred: {e}", icon="🚨")
+            st.session_state.pre_audio_bytes = audio_bytes
 
-        st.session_state.human_enq.append(user_input_stripped)
-        st.session_state.ai_resp.append(st.session_state.generated_text)
-        # clipboard.copy(st.session_state.generated_text)
+        if authen and user_input_stripped != "":
+            if st.session_state.generated_text:
+                st.write("**:blue[AI:]** " + st.session_state.generated_text)
+                # TTS
+                if st.session_state.tts == 'Yes':
+                    with st.spinner("TTS in progress..."):
+                        lang = detect(st.session_state.generated_text)
+                        tts = gTTS(text=st.session_state.generated_text, lang=lang)
+                        text_audio_file = "files/output_text.wav"
+                        tts.save(text_audio_file)
+                        # text_audio_file = BytesIO()
+                        # tts.write_to_fp(text_audio_file)
+                    st.audio(text_audio_file)
+                    # st.audio(text_audio_file.getvalue())
 
-        # for i in range(len(st.session_state.ai_resp)-1, -1, -1):
-        #    message(st.session_state.ai_resp[i].strip(), key=str(i))
-        #    message(st.session_state.human_enq[i], is_user=True, key=str(i) + '_user')
+            st.session_state.human_enq.append(user_input_stripped)
+            st.session_state.ai_resp.append(st.session_state.generated_text)
+            # clipboard.copy(st.session_state.generated_text)
+
+            # for i in range(len(st.session_state.ai_resp)-1, -1, -1):
+            #    message(st.session_state.ai_resp[i].strip(), key=str(i))
+            #    message(st.session_state.human_enq[i], is_user=True, key=str(i) + '_user')
 
     st.session_state.ignore_this = False
 
