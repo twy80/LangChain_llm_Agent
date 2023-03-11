@@ -153,11 +153,11 @@ def create_text(authen):
 
     with st.sidebar:
         st.write("")
-        st.write("**TTS Enabled**")
+        st.write("**Text to Speech**")
         st.session_state.tts = st.radio(
             "$\\hspace{0.08em}\\texttt{TTS}$",
-            ('Yes', 'No'),
-            horizontal=True,
+            ('Enabled', 'Disabled'),
+            # horizontal=True,
             on_change=ignore_this,
             label_visibility="collapsed"
         )
@@ -240,7 +240,7 @@ def create_text(authen):
             if st.session_state.generated_text:
                 st.write("**:blue[AI:]** " + st.session_state.generated_text)
                 # TTS
-                if st.session_state.tts == 'Yes':
+                if st.session_state.tts == 'Enabled':
                     with st.spinner("TTS in progress..."):
                         lang = detect(st.session_state.generated_text)
                         tts = gTTS(text=st.session_state.generated_text, lang=lang)
