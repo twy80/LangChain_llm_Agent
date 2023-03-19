@@ -109,7 +109,6 @@ def reset_conversation():
     st.session_state.ai_resp = []
     st.session_state.ignore_this = True
     st.session_state.initial_temp = 0.7
-    st.session_state.pre_audio_bytes = None
 
 
 def switch_between_two_apps():
