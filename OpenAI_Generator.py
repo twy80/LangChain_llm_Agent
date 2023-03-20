@@ -240,18 +240,21 @@ def create_text(authen):
                 st.write("**:blue[AI:]** " + st.session_state.generated_text)
                 # TTS
                 if st.session_state.tts == 'Enabled':
-                    with st.spinner("TTS in progress..."):
-                        lang = detect(st.session_state.generated_text)
-                        tts = gTTS(text=st.session_state.generated_text, lang=lang)
-                        text_audio_file = "files/output_text.wav"
-                        tts.save(text_audio_file)
-                        # text_audio_file = BytesIO()
-                        # tts.write_to_fp(text_audio_file)
-                    st.audio(text_audio_file)
-                    # st.audio(text_audio_file.getvalue())
+                    try:
+                        with st.spinner("TTS in progress..."):
+                            lang = detect(st.session_state.generated_text)
+                            tts = gTTS(text=st.session_state.generated_text, lang=lang)
+                            text_audio_file = "files/output_text.wav"
+                            tts.save(text_audio_file)
+                            # text_audio_file = BytesIO()
+                            # tts.write_to_fp(text_audio_file)
+                        st.audio(text_audio_file)
+                        # st.audio(text_audio_file.getvalue())
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}", icon="🚨")
 
-            st.session_state.human_enq.append(user_input_stripped)
-            st.session_state.ai_resp.append(st.session_state.generated_text)
+                st.session_state.human_enq.append(user_input_stripped)
+                st.session_state.ai_resp.append(st.session_state.generated_text)
             # clipboard.copy(st.session_state.generated_text)
 
             # for i in range(len(st.session_state.ai_resp)-1, -1, -1):
