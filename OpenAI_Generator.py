@@ -211,8 +211,8 @@ def create_text(authen):
         icon_size="2x",
     )
 
-    if not st.session_state.ignore_this:
-        if authen and audio_bytes != st.session_state.pre_audio_bytes:
+    if not st.session_state.ignore_this and authen:
+        if audio_bytes != st.session_state.pre_audio_bytes:
             try:
                 audio_file = "files/recorded_audio.wav"
                 with open(audio_file, "wb") as recorded_file:
@@ -235,7 +235,7 @@ def create_text(authen):
                 st.error(f"An error occurred: {e}", icon="🚨")
             st.session_state.pre_audio_bytes = audio_bytes
 
-        if authen and user_input_stripped != "":
+        if user_input_stripped != "":
             if st.session_state.generated_text:
                 st.write("**:blue[AI:]** " + st.session_state.generated_text)
                 # TTS
