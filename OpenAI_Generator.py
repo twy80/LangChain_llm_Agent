@@ -252,9 +252,9 @@ def create_text(authen):
                 except Exception as e:
                     st.error(f"An error occurred: {e}", icon="🚨")
 
-                st.session_state.human_enq.append(user_input_stripped)
-                st.session_state.ai_resp.append(st.session_state.generated_text)
-                # clipboard.copy(st.session_state.generated_text)
+            st.session_state.human_enq.append(user_input_stripped)
+            st.session_state.ai_resp.append(st.session_state.generated_text)
+            # clipboard.copy(st.session_state.generated_text)
 
             # for i in range(len(st.session_state.ai_resp)-1, -1, -1):
             #    message(st.session_state.ai_resp[i].strip(), key=str(i))
