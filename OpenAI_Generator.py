@@ -158,7 +158,7 @@ def create_text(authen):
             ('Enabled', 'Disabled'),
             # horizontal=True,
             on_change=ignore_this,
-            label_visibility="collapsed"
+            index=1, label_visibility="collapsed"
         )
         st.write("")
         st.write("**Temperature**")
