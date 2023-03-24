@@ -114,6 +114,7 @@ def reset_conversation():
 def switch_between_two_apps():
     st.session_state.initial_temp = st.session_state.temp_value
     st.session_state.pre_audio_bytes = None
+    st.session_state.input_key = 0
 
 
 def create_text(authen):
