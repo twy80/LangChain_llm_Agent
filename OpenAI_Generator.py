@@ -164,7 +164,7 @@ def create_text(authen):
         st.write("(Higher $\Rightarrow$ More random)")
 
     st.write("")
-    left, right = st.columns([32, 68])
+    left, right = st.columns([2, 3])
     left.write("##### Conversations with AI")
     right.write("(Displayed in reverse chronological order)")
 
