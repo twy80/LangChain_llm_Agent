@@ -170,7 +170,7 @@ def create_text(authen):
     right.write("(Displayed in reverse chronological order)")
 
     # for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
-    #    st.write("**:blue[Human:]** :blue[" + human + "]")
+    #    st.write("**:blue[Human:]** " + human)
     #    st.write("**:blue[AI:]** " + ai)
 
     # Get the text description from the user
@@ -227,7 +227,7 @@ def create_text(authen):
                     temperature=st.session_state.temp_value,
                     authen=authen
                 )
-                # st.write("**:blue[Human:]** :blue[" + user_input_stripped + "]")
+                # st.write("**:blue[Human:]** " + user_input_stripped)
             except Exception as e:
                 st.error(f"An error occurred: {e}", icon="🚨")
             st.session_state.pre_audio_bytes = audio_bytes
@@ -254,7 +254,7 @@ def create_text(authen):
             # clipboard.copy(st.session_state.generated_text)
 
     for (human, ai) in zip(st.session_state.human_enq[::-1], st.session_state.ai_resp[::-1]):
-        st.write("**:blue[Human:]** :blue[" + human + "]")
+        st.write("**:blue[Human:]** " + human)
         st.write("**:blue[AI:]** " + ai)
         st.write("---")
 
