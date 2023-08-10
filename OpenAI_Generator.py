@@ -16,14 +16,20 @@ initial_prompt = [
 ]
 
 
-def openai_create_text(user_prompt, temperature=0.7, authen=True):
+def openai_create_text(
+        user_prompt,
+        temperature=0.7,
+        model="gpt-3.5-turbo",
+        authen=True
+    ):
     """
     This function generates text based on user input
     if authen is True.
 
     Args:
         user_prompt (string): User input
-        temperature (float): Value between 0 and 1. Defaults to 0.7
+        temperature (float): Value between 0 and 2. Defaults to 0.7
+        model (string): "gpt-3.5-turbo" or "gpt-4"
         authen (bool): Defaults to True.
 
     The results are stored in st.session_state variables.
@@ -40,7 +46,7 @@ def openai_create_text(user_prompt, temperature=0.7, authen=True):
     try:
         with st.spinner("AI is thinking..."):
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+                model=model,
                 messages=st.session_state.prompt,
                 temperature=temperature,
                 # max_tokens=4096,
@@ -117,11 +123,13 @@ def switch_between_two_apps():
     st.session_state.input_key = 0
 
 
-def create_text(authen):
+def create_text(authen, model):
     """
     This function geneates text based on user input
     by calling openai_create_text()
     if user password is valid (authen = True).
+
+    model is set to "gpt-3.5-turbo" or "gpt-4".
     """
 
     if "generated_text" not in st.session_state:
@@ -158,7 +166,7 @@ def create_text(authen):
         st.write("**Temperature**")
         st.session_state.temp_value = st.slider(
             label="$\\hspace{0.08em}\\texttt{Temperature}\,$ (higher $\Rightarrow$ more random)",
-            min_value=0.0, max_value=1.0, value=st.session_state.initial_temp,
+            min_value=0.0, max_value=2.0, value=st.session_state.initial_temp,
             step=0.1, format="%.1f",
             label_visibility="collapsed"
         )
@@ -189,6 +197,7 @@ def create_text(authen):
         on_click=openai_create_text(
             user_input_stripped,
             temperature=st.session_state.temp_value,
+            model=model,
             authen=authen
         )
     )
@@ -225,6 +234,7 @@ def create_text(authen):
                 openai_create_text(
                     user_input_stripped,
                     temperature=st.session_state.temp_value,
+                    model=model,
                     authen=authen
                 )
                 # st.write("**:blue[Human:]** " + user_input_stripped)
@@ -336,14 +346,16 @@ def openai_create():
         st.write("**What to Generate**")
         option = st.sidebar.radio(
             "$\\hspace{0.25em}\\texttt{What to generate}$",
-            ('Text (GPT3.5)', 'Image (DALL·E)'),
+            ('Text (GPT 3.5)', 'Text (GPT 4)', 'Image (DALL·E)'),
             label_visibility="collapsed",
             # horizontal=True,
             on_change=switch_between_two_apps
         )
 
-    if option == 'Text (GPT3.5)':
-        create_text(authen)
+    if option == 'Text (GPT 3.5)':
+        create_text(authen, "gpt-3.5-turbo")
+    elif option == 'Text (GPT 4)':
+        create_text(authen, "gpt-4")
     else:
         create_image(authen)
 
