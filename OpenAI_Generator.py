@@ -19,23 +19,21 @@ initial_prompt = [
 def openai_create_text(
         user_prompt,
         temperature=0.7,
-        model="gpt-3.5-turbo",
-        authen=True
+        model="gpt-3.5-turbo"
     ):
     """
-    This function generates text based on user input
-    if authen is True.
+    This function generates text based on user input.
 
     Args:
         user_prompt (string): User input
         temperature (float): Value between 0 and 2. Defaults to 0.7
-        model (string): "gpt-3.5-turbo" or "gpt-4"
-        authen (bool): Defaults to True.
+        model (string): "gpt-3.5-turbo" or "gpt-4".
 
     The results are stored in st.session_state variables.
     """
 
-    if not authen or user_prompt == "":
+    if user_prompt == "":
+        st.session_state.generated_text = None
         return None
 
     # Add the user input to the prompt
@@ -69,10 +67,9 @@ def openai_create_text(
     return None
 
 
-def openai_create_image(description, size="512x512", authen=True):
+def openai_create_image(description, size="512x512"):
     """
-    This function generates image based on user description
-    if authen is True.
+    This function generates image based on user description.
 
     Args:
         description (string): User description
@@ -81,7 +78,7 @@ def openai_create_image(description, size="512x512", authen=True):
     The resulting image is plotted.
     """
 
-    if not authen or description.strip() == "":
+    if description.strip() == "":
         return None
 
     try:
@@ -111,23 +108,21 @@ def reset_conversation():
 
     st.session_state.generated_text = None
     st.session_state.prompt = initial_prompt
+    st.session_state.prompt_exists = False
     st.session_state.human_enq = []
     st.session_state.ai_resp = []
     st.session_state.initial_temp = 0.7
-    st.session_state.input_key = 0
 
 
-def switch_between_two_apps():
+def switch_between_apps():
     st.session_state.initial_temp = st.session_state.temp_value
     st.session_state.pre_audio_bytes = None
-    st.session_state.input_key = 0
 
 
-def create_text(authen, model):
+def create_text(model):
     """
     This function geneates text based on user input
-    by calling openai_create_text()
-    if user password is valid (authen = True).
+    by calling openai_create_text().
 
     model is set to "gpt-3.5-turbo" or "gpt-4".
     """
@@ -137,6 +132,9 @@ def create_text(authen, model):
 
     if "prompt" not in st.session_state:
         st.session_state.prompt = initial_prompt
+
+    if "prompt_exists" not in st.session_state:
+        st.session_state.prompt_exists = False
 
     if "human_enq" not in st.session_state:
         st.session_state.human_enq = []
@@ -149,9 +147,6 @@ def create_text(authen, model):
 
     if "pre_audio_bytes" not in st.session_state:
         st.session_state.pre_audio_bytes = None
-
-    if "input_key" not in st.session_state:
-        st.session_state.input_key = 0
 
     with st.sidebar:
         st.write("")
@@ -173,38 +168,18 @@ def create_text(authen, model):
         st.write("(Higher $\Rightarrow$ More random)")
 
     st.write("")
-    left, right = st.columns([2, 3])
+    left, right = st.columns([4, 7])
     left.write("##### Conversations with AI")
-    right.write("(Displayed in reverse chronological order)")
+    right.write("Click on the mic icon and speak, or type text below.")
 
-    # for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
-    #    st.write("**:blue[Human:]** " + human)
-    #    st.write("**:blue[AI:]** " + ai)
+    for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
+        with st.chat_message("human"):
+            st.write(human)
+        with st.chat_message("ai"):
+            st.write(ai)
 
-    # Get the text description from the user
-    key = st.session_state.input_key
-    st.text_area(
-        label="$\\hspace{0.08em}\\texttt{Enter your query}$",
-        value="",
-        label_visibility="visible",
-        key=key
-    )
-    user_input_stripped = st.session_state[key-1].strip() if key > 0 else ""
-
-    left, right = st.columns(2) # To show the results below the button
-    left.button(
-        label="Send",
-        on_click=openai_create_text(
-            user_input_stripped,
-            temperature=st.session_state.temp_value,
-            model=model,
-            authen=authen
-        )
-    )
-    right.button(
-        label="Reset",
-        on_click=reset_conversation
-    )
+    # Use your keyboard
+    user_input = st.chat_input(placeholder="Enter your query")
 
     # Use your microphone
     audio_bytes = audio_recorder(
@@ -217,33 +192,38 @@ def create_text(authen, model):
         icon_size="2x",
     )
 
-    if authen:
-        if audio_bytes != st.session_state.pre_audio_bytes:
-            try:
-                audio_file = "files/recorded_audio.wav"
-                with open(audio_file, "wb") as recorded_file:
-                    recorded_file.write(audio_bytes)
-                audio_data = open(audio_file, "rb")
+    if audio_bytes != st.session_state.pre_audio_bytes:
+        try:
+            audio_file = "files/recorded_audio.wav"
+            with open(audio_file, "wb") as recorded_file:
+                recorded_file.write(audio_bytes)
+            audio_data = open(audio_file, "rb")
 
-                # audio_data = BytesIO(audio_bytes)
-                # audio_data.name = "recorded_audio.wav"
+            # audio_data = BytesIO(audio_bytes)
+            # audio_data.name = "recorded_audio.wav"
 
-                transcript = openai.Audio.transcribe("whisper-1", audio_data)
+            transcript = openai.Audio.transcribe("whisper-1", audio_data)
+            user_prompt = transcript['text']
+            st.session_state.prompt_exists = True
+        except Exception as e:
+            st.error(f"An error occurred: {e}", icon="🚨")
+        st.session_state.pre_audio_bytes = audio_bytes
+    elif user_input:
+        user_prompt = user_input.strip()
+        st.session_state.prompt_exists = True
 
-                user_input_stripped = transcript['text']
-                openai_create_text(
-                    user_input_stripped,
-                    temperature=st.session_state.temp_value,
-                    model=model,
-                    authen=authen
-                )
-                # st.write("**:blue[Human:]** " + user_input_stripped)
-            except Exception as e:
-                st.error(f"An error occurred: {e}", icon="🚨")
-            st.session_state.pre_audio_bytes = audio_bytes
+    if st.session_state.prompt_exists:
+        openai_create_text(
+            user_prompt,
+            temperature=st.session_state.temp_value,
+            model=model
+        )
+        if st.session_state.generated_text:
+            with st.chat_message("human"):
+                st.write(user_prompt)
+            with st.chat_message("ai"):
+                st.write(st.session_state.generated_text)
 
-        if user_input_stripped != "" and st.session_state.generated_text:
-            # st.write("**:blue[AI:]** " + st.session_state.generated_text)
             # TTS
             if st.session_state.tts == 'Enabled':
                 try:
@@ -259,23 +239,21 @@ def create_text(authen, model):
                 except Exception as e:
                     st.error(f"An error occurred: {e}", icon="🚨")
 
-            st.session_state.human_enq.append(user_input_stripped)
+            st.session_state.human_enq.append(user_prompt)
             st.session_state.ai_resp.append(st.session_state.generated_text)
             # clipboard.copy(st.session_state.generated_text)
 
-    for (human, ai) in zip(st.session_state.human_enq[::-1], st.session_state.ai_resp[::-1]):
-        st.write("**:blue[Human:]** " + human)
-        st.write("**:blue[AI:]** " + ai)
-        st.write("---")
+    st.session_state.prompt_exists = False
+    st.button(
+        label="Reset",
+        on_click=reset_conversation
+    )
 
-    st.session_state.input_key += 1
 
-
-def create_image(authen):
+def create_image():
     """
     This function geneates image based on user description
-    by calling openai_create_image()
-    if user password is valid (authen = True).
+    by calling openai_create_image().
     """
 
     # Set the image size
@@ -349,22 +327,22 @@ def openai_create():
             ('Text (GPT 3.5)', 'Text (GPT 4)', 'Image (DALL·E)'),
             label_visibility="collapsed",
             # horizontal=True,
-            on_change=switch_between_two_apps
+            on_change=switch_between_apps
         )
 
-    if option == 'Text (GPT 3.5)':
-        create_text(authen, "gpt-3.5-turbo")
-    elif option == 'Text (GPT 4)':
-        create_text(authen, "gpt-4")
+    if not authen:
+        st.error("**Incorrect password. Please try again.**", icon="🚨")
     else:
-        create_image(authen)
+        if option == 'Text (GPT 3.5)':
+            create_text("gpt-3.5-turbo")
+        elif option == 'Text (GPT 4)':
+            create_text("gpt-4")
+        else:
+            create_image()
 
     with st.sidebar:
         st.write("")
         st.write("**:blue[Coded by T.-W. Yoon, 2023]**")
-
-    if not authen:
-        st.error("**Incorrect password. Please try again.**", icon="🚨")
 
 
 if __name__ == "__main__":
