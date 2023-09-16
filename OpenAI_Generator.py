@@ -37,7 +37,6 @@ def openai_create_text(
         st.session_state.prompt.append(
             {"role": "user", "content": user_prompt}
         )
-
         try:
             with st.spinner("AI is thinking..."):
                 response = openai.ChatCompletion.create(
