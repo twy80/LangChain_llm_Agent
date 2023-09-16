@@ -32,37 +32,37 @@ def openai_create_text(
     The results are stored in st.session_state variables.
     """
 
-    if user_prompt == "":
+    if user_prompt:
+        # Add the user input to the prompt
+        st.session_state.prompt.append(
+            {"role": "user", "content": user_prompt}
+        )
+
+        try:
+            with st.spinner("AI is thinking..."):
+                response = openai.ChatCompletion.create(
+                    model=model,
+                    messages=st.session_state.prompt,
+                    temperature=temperature,
+                    # max_tokens=4096,
+                    # top_p=1,
+                    # frequency_penalty=0,
+                    # presence_penalty=0.6,
+                )
+            generated_text = response.choices[0].message.content
+        except openai.error.OpenAIError as e:
+            generated_text = None
+            st.error(f"An error occurred: {e}", icon="🚨")
+
+        if generated_text:
+            # Add the generated output to the prompt
+            st.session_state.prompt.append(
+                {"role": "assistant", "content": generated_text}
+            )
+            st.session_state.generated_text = generated_text
+    else:
         st.session_state.generated_text = None
         return None
-
-    # Add the user input to the prompt
-    st.session_state.prompt.append(
-        {"role": "user", "content": user_prompt}
-    )
-
-    try:
-        with st.spinner("AI is thinking..."):
-            response = openai.ChatCompletion.create(
-                model=model,
-                messages=st.session_state.prompt,
-                temperature=temperature,
-                # max_tokens=4096,
-                # top_p=1,
-                # frequency_penalty=0,
-                # presence_penalty=0.6,
-            )
-        generated_text = response.choices[0].message.content
-    except openai.error.OpenAIError as e:
-        generated_text = None
-        st.error(f"An error occurred: {e}", icon="🚨")
-
-    if generated_text:
-        # Add the generated output to the prompt
-        st.session_state.prompt.append(
-            {"role": "assistant", "content": generated_text}
-        )
-        st.session_state.generated_text = generated_text
 
     return None
 
