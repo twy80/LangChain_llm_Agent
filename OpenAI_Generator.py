@@ -118,6 +118,21 @@ def switch_between_apps():
     st.session_state.pre_audio_bytes = None
 
 
+def autoplay_audio(file_path: str):
+    with open(file_path, "rb") as f:
+        data = f.read()
+        b64 = base64.b64encode(data).decode()
+        md = f"""
+            <audio controls autoplay style="width: 100%;">
+            <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+            </audio>
+            """
+        st.markdown(
+            md,
+            unsafe_allow_html=True,
+        )
+
+
 def create_text(model):
     """
     This function geneates text based on user input
@@ -233,7 +248,7 @@ def create_text(model):
                         tts.save(text_audio_file)
                         # text_audio_file = BytesIO()
                         # tts.write_to_fp(text_audio_file)
-                    st.audio(text_audio_file)
+                    autoplay_audio(text_audio_file)
                     # st.audio(text_audio_file.getvalue())
                 except Exception as e:
                     st.error(f"An error occurred: {e}", icon="🚨")
