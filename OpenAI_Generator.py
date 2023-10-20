@@ -11,11 +11,6 @@ import base64
 # from io import BytesIO
 # import clipboard
 
-# initial prompt for gpt3.5
-initial_prompt = [
-    {"role": "system", "content": "You are a helpful assistant."}
-]
-
 
 def openai_create_text(
         user_prompt,
@@ -105,9 +100,10 @@ def reset_conversation():
     #    to_clipboard += "\nHuman: " + human + "\n"
     #    to_clipboard += "\nAI: " + ai + "\n"
     # clipboard.copy(to_clipboard)
-
     st.session_state.generated_text = None
-    st.session_state.prompt = initial_prompt
+    st.session_state.prompt = [
+        {"role": "system", "content": st.session_state.prev_ai_role}
+    ]
     st.session_state.prompt_exists = False
     st.session_state.human_enq = []
     st.session_state.ai_resp = []
@@ -142,11 +138,22 @@ def create_text(model):
     model is set to "gpt-3.5-turbo" or "gpt-4".
     """
 
+    # initial system prompts
+    general_role = "You are a helpful assistant."
+    english_teacher = "You are an English teacher who analyzes texts and corrects any grammatical issues if necessary."
+    translator = "You are a translator who translates English into Korean and Korean into English."
+    coding_adviser = "You are an expert in coding who provides advice on good coding styles."
+
     if "generated_text" not in st.session_state:
         st.session_state.generated_text = None
 
+    if "prev_ai_role" not in st.session_state:
+        st.session_state.prev_ai_role = general_role
+
     if "prompt" not in st.session_state:
-        st.session_state.prompt = initial_prompt
+        st.session_state.prompt = [
+            {"role": "system", "content": st.session_state.prev_ai_role}
+        ]
 
     if "prompt_exists" not in st.session_state:
         st.session_state.prompt_exists = False
@@ -181,6 +188,18 @@ def create_text(model):
             label_visibility="collapsed"
         )
         st.write("(Higher $\Rightarrow$ More random)")
+
+    st.write("")
+    st.write("##### Message to AI")
+    st.session_state.ai_role = st.selectbox(
+        "AI's role",
+        (general_role, english_teacher, translator, coding_adviser),
+        label_visibility="collapsed"
+    )
+
+    if st.session_state.ai_role != st.session_state.prev_ai_role:
+        st.session_state.prev_ai_role = st.session_state.ai_role
+        reset_conversation()
 
     st.write("")
     left, right = st.columns([4, 7])
