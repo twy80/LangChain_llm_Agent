@@ -376,7 +376,7 @@ def openai_create():
 
     with st.sidebar:
         st.write("---")
-        st.write("<small>:blue[T.-W. Yoon, Aug. 2023]</small>", unsafe_allow_html=True)
+        st.write("<small>$\,$:blue[T.-W. Yoon, Aug. 2023]</small>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
