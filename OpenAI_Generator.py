@@ -377,10 +377,12 @@ def openai_create():
     with st.sidebar:
         st.write("---")
         st.write(
-            "T.-W. Yoon, Aug. 2023
+            """
+            T.-W. Yoon, Aug. 2023
             [Playground](https://chatgpt-dalle.streamlit.app/)
-            [Differential equations](https://diff-eqn.streamlit.app/)",
+            [Differential equations](https://diff-eqn.streamlit.app/),
             unsafe_allow_html=True)
+            """
         )
 
 
