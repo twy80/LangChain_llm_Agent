@@ -97,8 +97,8 @@ def openai_create_image(description, size="512x512"):
 def reset_conversation():
     # to_clipboard = ""
     # for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
-    #    to_clipboard += "\nHuman: " + human + "\n"
-    #    to_clipboard += "\nAI: " + ai + "\n"
+    #     to_clipboard += "\nHuman: " + human + "\n"
+    #     to_clipboard += "\nAI: " + ai + "\n"
     # clipboard.copy(to_clipboard)
     st.session_state.generated_text = None
     st.session_state.prompt = [
