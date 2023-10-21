@@ -376,14 +376,11 @@ def openai_create():
 
     with st.sidebar:
         st.write("---")
-        st.write("<small>T.-W. Yoon, Aug. 2023</small>", unsafe_allow_html=True)
         st.write(
-            "<small>[Playground](https://chatgpt-dalle.streamlit.app/)</small>",
-            unsafe_allow_html=True
-        )
-        st.write(
-            "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
-            unsafe_allow_html=True
+            "<small>T.-W. Yoon, Aug. 2023  
+            [Playground](https://chatgpt-dalle.streamlit.app/)  
+            [Differential equations](https://diff-eqn.streamlit.app/)",
+            unsafe_allow_html=True)
         )
 
 
