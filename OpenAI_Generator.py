@@ -376,7 +376,7 @@ def openai_create():
 
     with st.sidebar:
         st.write("---")
-        st.write("T.-W. Yoon, Aug. 2023")
+        st.write("<small>T.-W. Yoon, Aug. 2023</small>", unsafe_allow_html=True)
         # st.markdown(
         #     "<small> T.-W. Yoon, Aug. 2023</small>", unsafe_allow_html=True)
         # )
