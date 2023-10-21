@@ -143,6 +143,8 @@ def create_text(model):
     english_teacher = "You are an English teacher who analyzes texts and corrects any grammatical issues if necessary."
     translator = "You are a translator who translates English into Korean and Korean into English."
     coding_adviser = "You are an expert in coding who provides advice on good coding styles."
+    close_friend = "You are a close friend of mine."
+    roles = (general_role, english_teacher, translator, coding_adviser, close_friend)
 
     if "generated_text" not in st.session_state:
         st.session_state.generated_text = None
@@ -192,8 +194,7 @@ def create_text(model):
     st.write("")
     st.write("##### Message to AI")
     ai_role = st.selectbox(
-        "AI's role",
-        (general_role, english_teacher, translator, coding_adviser),
+        "AI's role", roles, index=roles.index(st.session_state.prev_ai_role),
         label_visibility="collapsed"
     )
 
@@ -376,7 +377,10 @@ def openai_create():
 
     with st.sidebar:
         st.write("---")
-        st.write("<small>$\,$:blue[T.-W. Yoon, Aug. 2023]</small>", unsafe_allow_html=True)
+        st.write(
+            "<small>$\,$:blue[T.-W. Yoon, Aug. 2023]</small>",
+            unsafe_allow_html=True
+        )
 
 
 if __name__ == "__main__":
