@@ -1,5 +1,5 @@
 """
-ChatGPT & DALL·E using openai API (by T.-W. Yoon, Mar. 2023)
+ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 """
 
 import openai
@@ -375,8 +375,8 @@ def openai_create():
             create_image()
 
     with st.sidebar:
-        st.write("")
-        st.write("**:blue[Coded by T.-W. Yoon, 2023]**")
+        st.write("---")
+        st.write("T.-W. Yoon, Aug. 2023")
 
 
 if __name__ == "__main__":
