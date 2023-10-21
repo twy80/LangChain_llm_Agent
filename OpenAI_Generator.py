@@ -191,14 +191,14 @@ def create_text(model):
 
     st.write("")
     st.write("##### Message to AI")
-    st.session_state.ai_role = st.selectbox(
+    ai_role = st.selectbox(
         "AI's role",
         (general_role, english_teacher, translator, coding_adviser),
         label_visibility="collapsed"
     )
 
-    if st.session_state.ai_role != st.session_state.prev_ai_role:
-        st.session_state.prev_ai_role = st.session_state.ai_role
+    if ai_role != st.session_state.prev_ai_role:
+        st.session_state.prev_ai_role = ai_role
         reset_conversation()
 
     st.write("")
