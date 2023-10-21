@@ -112,7 +112,7 @@ def reset_conversation():
 
 def switch_between_apps():
     st.session_state.initial_temp = st.session_state.temp_value
-    st.session_state.pre_audio_bytes = None
+    st.session_state.prev_audio_bytes = None
 
 
 def autoplay_audio(file_path):
@@ -167,8 +167,8 @@ def create_text(model):
     if "initial_temp" not in st.session_state:
         st.session_state.initial_temp = 0.7
 
-    if "pre_audio_bytes" not in st.session_state:
-        st.session_state.pre_audio_bytes = None
+    if "prev_audio_bytes" not in st.session_state:
+        st.session_state.prev_audio_bytes = None
 
     with st.sidebar:
         st.write("")
@@ -226,7 +226,7 @@ def create_text(model):
         icon_size="2x",
     )
 
-    if audio_bytes != st.session_state.pre_audio_bytes:
+    if audio_bytes != st.session_state.prev_audio_bytes:
         try:
             audio_file = "files/recorded_audio.wav"
             with open(audio_file, "wb") as recorded_file:
@@ -241,7 +241,7 @@ def create_text(model):
             st.session_state.prompt_exists = True
         except Exception as e:
             st.error(f"An error occurred: {e}", icon="🚨")
-        st.session_state.pre_audio_bytes = audio_bytes
+        st.session_state.prev_audio_bytes = audio_bytes
     elif user_input:
         user_prompt = user_input.strip()
         st.session_state.prompt_exists = True
