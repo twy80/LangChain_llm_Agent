@@ -376,7 +376,7 @@ def openai_create():
 
     with st.sidebar:
         st.write("---")
-        st.write("""<small>
+        st.markdown("""<small>
             T.-W. Yoon, Aug. 2023 | [Playground](https://chatgpt-dalle.streamlit.app/) | [Differential equations](https://diff-eqn.streamlit.app/)
             </small>""", unsafe_allow_html=True
         )
