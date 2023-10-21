@@ -378,16 +378,11 @@ def openai_create():
         st.write("---")
         st.write("""<small>
             T.-W. Yoon, Aug. 2023
-            </small>""", unsafe_allow_html=True)
-        # st.markdown(
-        #     "<small> T.-W. Yoon, Aug. 2023</small>", unsafe_allow_html=True)
-        # )
-        # st.write(
-        #     "<small>
-        #     [Playground](https://chatgpt-dalle.streamlit.app/) &
-        #     [Differential equations](https://diff-eqn.streamlit.app/)
-        #     </small>", unsafe_allow_html=True)
-        # )
+
+            [Playground](https://chatgpt-dalle.streamlit.app/)<br>
+            [Differential equations](https://diff-eqn.streamlit.app/)
+            </small>""", unsafe_allow_html=True
+        )
 
 
 if __name__ == "__main__":
