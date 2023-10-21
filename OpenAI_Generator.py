@@ -376,9 +376,10 @@ def openai_create():
 
     with st.sidebar:
         st.write("---")
-        st.markdown(
-            "<small> T.-W. Yoon, Aug. 2023</small>", unsafe_allow_html=True)
-        )
+        st.write("T.-W. Yoon, Aug. 2023")
+        # st.markdown(
+        #     "<small> T.-W. Yoon, Aug. 2023</small>", unsafe_allow_html=True)
+        # )
         # st.write(
         #     "<small>
         #     [Playground](https://chatgpt-dalle.streamlit.app/) &
