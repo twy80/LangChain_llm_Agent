@@ -378,8 +378,10 @@ def openai_create():
     with st.sidebar:
         st.write("---")
         st.write(
-            "<small>$\,$:blue[T.-W. Yoon, Aug. 2023]</small>",
-            unsafe_allow_html=True
+          "<small>**T.-W. Yoon**, Aug. 2023  \n</small>",
+          "<small>[TWY's Playground](https://twy-playground.streamlit.app/)  \n</small>",
+          "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
+          unsafe_allow_html=True
         )
 
 
