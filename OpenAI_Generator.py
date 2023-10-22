@@ -180,9 +180,9 @@ def create_text(model):
         st.write("**Text to Speech**")
         st.session_state.tts = st.radio(
             "$\\hspace{0.08em}\\texttt{TTS}$",
-            ('Enabled', 'Disabled'),
+            ('Enabled', 'Disabled', 'Auto'),
             # horizontal=True,
-            index=1, label_visibility="collapsed"
+            index=2, label_visibility="collapsed"
         )
         st.write("")
         st.write("**Temperature**")
