@@ -263,8 +263,10 @@ def create_text(model):
             with st.chat_message("ai"):
                 st.write(st.session_state.generated_text)
 
-            # TTS
-            if st.session_state.mic_used or st.session_state.tts == 'Enabled':
+            # TTS under two conditions
+            cond1 = st.session_state.tts == 'Enabled'
+            cond2 = st.session_state.tts == 'Auto' and st.session_state.mic_used
+            if cond1 or cond2:
                 try:
                     with st.spinner("TTS in progress..."):
                         lang = detect(st.session_state.generated_text)
