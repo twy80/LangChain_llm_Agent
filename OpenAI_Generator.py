@@ -107,7 +107,7 @@ def reset_conversation():
     st.session_state.prompt_exists = False
     st.session_state.human_enq = []
     st.session_state.ai_resp = []
-    st.session_state.initial_temp = 0.7
+    st.session_state.initial_temp = st.session_state.temp_value
 
 
 def switch_between_apps():
