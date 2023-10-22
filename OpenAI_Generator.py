@@ -172,6 +172,9 @@ def create_text(model):
     if "prev_audio_bytes" not in st.session_state:
         st.session_state.prev_audio_bytes = None
 
+    if "mic_used" not in st.session_state:
+        st.session_state.mic_used = False
+
     with st.sidebar:
         st.write("")
         st.write("**Text to Speech**")
@@ -240,6 +243,7 @@ def create_text(model):
             transcript = openai.Audio.transcribe("whisper-1", audio_data)
             user_prompt = transcript['text']
             st.session_state.prompt_exists = True
+            st.session_state.mic_used = True
         except Exception as e:
             st.error(f"An error occurred: {e}", icon="🚨")
         st.session_state.prev_audio_bytes = audio_bytes
@@ -260,7 +264,7 @@ def create_text(model):
                 st.write(st.session_state.generated_text)
 
             # TTS
-            if st.session_state.tts == 'Enabled':
+            if st.session_state.mic_used or st.session_state.tts == 'Enabled':
                 try:
                     with st.spinner("TTS in progress..."):
                         lang = detect(st.session_state.generated_text)
@@ -274,6 +278,7 @@ def create_text(model):
                 except Exception as e:
                     st.error(f"An error occurred: {e}", icon="🚨")
 
+            st.session_state.mic_used = False
             st.session_state.human_enq.append(user_prompt)
             st.session_state.ai_resp.append(st.session_state.generated_text)
             # clipboard.copy(st.session_state.generated_text)
