@@ -314,9 +314,9 @@ def create_text(model):
         st.session_state.prompt_exists = False
 
     # Show the results by reloading the page if there are no errors
-    if st.session_state.error_present:
-        st.session_state.error_present = False
-    else:
+    # if st.session_state.error_present:
+    #     st.session_state.error_present = False
+    # else:
         st.rerun()
 
 
