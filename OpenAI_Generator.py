@@ -317,7 +317,8 @@ def create_text(model):
         if st.session_state.error_present:
             st.session_state.error_present = False
         else:
-            st.rerun()
+            pass
+        st.rerun()
 
 
 def create_image():
