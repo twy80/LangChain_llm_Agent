@@ -227,6 +227,16 @@ def create_text(model):
         with st.chat_message("ai"):
             st.write(ai)
 
+    # Reset the conversation
+    if st.session_state.play_audio:
+        autoplay_audio(text_audio_file)
+        st.session_state.play_audio = False
+
+    st.button(
+        label="Reset",
+        on_click=reset_conversation
+    )
+
     # Use your keyboard
     user_input = st.chat_input(placeholder="Enter your query")
 
@@ -303,15 +313,6 @@ def create_text(model):
             st.session_state.error_present = False
         else:
             st.rerun()
-
-    if st.session_state.play_audio:
-        autoplay_audio(text_audio_file)
-        st.session_state.play_audio = False
-
-    st.button(
-        label="Reset",
-        on_click=reset_conversation
-    )
 
 
 def create_image():
