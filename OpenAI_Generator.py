@@ -108,6 +108,8 @@ def reset_conversation():
     st.session_state.human_enq = []
     st.session_state.ai_resp = []
     st.session_state.initial_temp = st.session_state.temp_value
+    st.session_state.play_audio = False
+    st.session_state.error_present = False
 
 
 def switch_between_apps():
@@ -180,6 +182,9 @@ def create_text(model):
 
     if "play_audio" not in st.session_state:
         st.session_state.play_audio = False
+
+    if "error_present" not in st.session_state:
+        st.session_state.error_present = False
 
     with st.sidebar:
         st.write("")
@@ -292,7 +297,12 @@ def create_text(model):
             # clipboard.copy(st.session_state.generated_text)
 
         st.session_state.prompt_exists = False
-        st.rerun()
+
+        # Show the results by reloading the page if there are no errors
+        if st.session_state.error_present:
+            st.session_state.error_present = False
+        else:
+            st.rerun()
 
     if st.session_state.play_audio:
         autoplay_audio(text_audio_file)
