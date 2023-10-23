@@ -291,7 +291,7 @@ def create_text(model):
             # clipboard.copy(st.session_state.generated_text)
 
         st.session_state.prompt_exists = False
-        st.rerun()
+        st.experimental_rerun()
 
     if st.session_state.play_audio:
         autoplay_audio(text_audio_file)
