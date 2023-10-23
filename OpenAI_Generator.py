@@ -48,6 +48,7 @@ def openai_create_text(
         except openai.error.OpenAIError as e:
             generated_text = None
             st.error(f"An error occurred: {e}", icon="🚨")
+            st.session_state.error_present = True
 
         if generated_text:
             # Add the generated output to the prompt
@@ -90,6 +91,7 @@ def openai_create_image(description, size="512x512"):
         )
     except openai.error.OpenAIError as e:
         st.error(f"An error occurred: {e}", icon="🚨")
+        st.session_state.error_present = True
 
     return None
 
@@ -141,6 +143,7 @@ def create_text(model):
     """
 
     # Audio file for TTS
+    audio_file = "files/recorded_audio.wav"
     text_audio_file = "files/output_text.wav"
 
     # initial system prompts
@@ -221,17 +224,19 @@ def create_text(model):
     left.write("##### Conversations with AI")
     right.write("Click on the mic icon and speak, or type text below.")
 
+    # Print conversations
     for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
         with st.chat_message("human"):
             st.write(human)
         with st.chat_message("ai"):
             st.write(ai)
 
-    # Reset the conversation
+    # Play TTS
     if st.session_state.play_audio:
         autoplay_audio(text_audio_file)
         st.session_state.play_audio = False
 
+    # Reset the conversation
     st.button(
         label="Reset",
         on_click=reset_conversation
@@ -253,7 +258,6 @@ def create_text(model):
 
     if audio_bytes != st.session_state.prev_audio_bytes:
         try:
-            audio_file = "files/recorded_audio.wav"
             with open(audio_file, "wb") as recorded_file:
                 recorded_file.write(audio_bytes)
             audio_data = open(audio_file, "rb")
@@ -267,6 +271,7 @@ def create_text(model):
             st.session_state.mic_used = True
         except Exception as e:
             st.error(f"An error occurred: {e}", icon="🚨")
+            st.session_state.error_present = True
         st.session_state.prev_audio_bytes = audio_bytes
     elif user_input:
         user_prompt = user_input.strip()
@@ -300,6 +305,7 @@ def create_text(model):
                     st.session_state.play_audio = True
                 except Exception as e:
                     st.error(f"An error occurred: {e}", icon="🚨")
+                    st.session_state.error_present = True
 
             st.session_state.mic_used = False
             st.session_state.human_enq.append(user_prompt)
@@ -397,6 +403,7 @@ def openai_create():
 
     if not authen:
         st.error("**Incorrect password. Please try again.**", icon="🚨")
+        st.session_state.error_present = True
     else:
         if option == 'Text (GPT 3.5)':
             create_text("gpt-3.5-turbo")
