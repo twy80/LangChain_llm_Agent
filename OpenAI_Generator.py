@@ -221,7 +221,7 @@ def create_text(model):
 
     st.write("")
     left, right = st.columns([4, 7])
-    left.write("##### Conversations with AI")
+    left.write("##### Conversation with AI")
     right.write("Click on the mic icon and speak, or type text below.")
 
     # Print conversations
@@ -238,7 +238,7 @@ def create_text(model):
 
     # Reset the conversation
     st.button(
-        label="Reset",
+        label="Reset the conversation",
         on_click=reset_conversation
     )
 
