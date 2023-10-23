@@ -284,10 +284,10 @@ def create_text(model):
             model=model
         )
         if st.session_state.generated_text:
-            # with st.chat_message("human"):
-            #     st.write(user_prompt)
-            # with st.chat_message("ai"):
-            #     st.write(st.session_state.generated_text)
+            with st.chat_message("human"):
+                st.write(user_prompt)
+            with st.chat_message("ai"):
+                st.write(st.session_state.generated_text)
 
             # TTS under two conditions
             cond1 = st.session_state.tts == 'Enabled'
