@@ -138,6 +138,9 @@ def create_text(model):
     model is set to "gpt-3.5-turbo" or "gpt-4".
     """
 
+    # Audio file for TTS
+    text_audio_file = "files/output_text.wav"
+
     # initial system prompts
     general_role = "You are a helpful assistant."
     english_teacher = "You are an English teacher who analyzes texts and corrects any grammatical issues if necessary."
@@ -174,6 +177,9 @@ def create_text(model):
 
     if "mic_used" not in st.session_state:
         st.session_state.mic_used = False
+
+    if "play_audio" not in st.session_state:
+        st.session_state.play_audio = False
 
     with st.sidebar:
         st.write("")
@@ -258,10 +264,10 @@ def create_text(model):
             model=model
         )
         if st.session_state.generated_text:
-            with st.chat_message("human"):
-                st.write(user_prompt)
-            with st.chat_message("ai"):
-                st.write(st.session_state.generated_text)
+            # with st.chat_message("human"):
+            #     st.write(user_prompt)
+            # with st.chat_message("ai"):
+            #     st.write(st.session_state.generated_text)
 
             # TTS under two conditions
             cond1 = st.session_state.tts == 'Enabled'
@@ -271,11 +277,10 @@ def create_text(model):
                     with st.spinner("TTS in progress..."):
                         lang = detect(st.session_state.generated_text)
                         tts = gTTS(text=st.session_state.generated_text, lang=lang)
-                        text_audio_file = "files/output_text.wav"
                         tts.save(text_audio_file)
                         # text_audio_file = BytesIO()
                         # tts.write_to_fp(text_audio_file)
-                    autoplay_audio(text_audio_file)
+                    # autoplay_audio(text_audio_file)
                     # st.audio(text_audio_file.getvalue())
                 except Exception as e:
                     st.error(f"An error occurred: {e}", icon="🚨")
@@ -285,7 +290,13 @@ def create_text(model):
             st.session_state.ai_resp.append(st.session_state.generated_text)
             # clipboard.copy(st.session_state.generated_text)
 
-    st.session_state.prompt_exists = False
+        st.session_state.prompt_exists = False
+        st.rerun()
+
+    if st.session_state.play_audio:
+        autoplay_audio(text_audio_file)
+        st.session_state.play_audio = False
+
     st.button(
         label="Reset",
         on_click=reset_conversation
