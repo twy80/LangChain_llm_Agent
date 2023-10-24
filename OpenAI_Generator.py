@@ -48,7 +48,6 @@ def openai_create_text(
         except openai.error.OpenAIError as e:
             generated_text = None
             st.error(f"An error occurred: {e}", icon="🚨")
-            st.session_state.error_present = True
 
         if generated_text:
             # Add the generated output to the prompt
@@ -91,7 +90,6 @@ def openai_create_image(description, size="512x512"):
         )
     except openai.error.OpenAIError as e:
         st.error(f"An error occurred: {e}", icon="🚨")
-        st.session_state.error_present = True
 
     return None
 
@@ -271,7 +269,6 @@ def create_text(model):
             st.session_state.mic_used = True
         except Exception as e:
             st.error(f"An error occurred: {e}", icon="🚨")
-            st.session_state.error_present = True
         st.session_state.prev_audio_bytes = audio_bytes
     elif user_input:
         user_prompt = user_input.strip()
@@ -311,13 +308,13 @@ def create_text(model):
             st.session_state.ai_resp.append(st.session_state.generated_text)
             # clipboard.copy(st.session_state.generated_text)
 
-        st.session_state.prompt_exists = False
+            # Show the results by reloading the page if there are no errors
+            if st.session_state.error_present:
+                st.session_state.error_present = False
+            else:
+                st.rerun()
 
-        # Show the results by reloading the page if there are no errors
-        if st.session_state.error_present:
-            st.session_state.error_present = False
-        else:
-            st.rerun()
+        st.session_state.prompt_exists = False
 
 
 def create_image():
