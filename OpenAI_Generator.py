@@ -313,11 +313,11 @@ def create_text(model):
 
         st.session_state.prompt_exists = False
 
-    # Show the results by reloading the page if there are no errors
-    # if st.session_state.error_present:
-    #     st.session_state.error_present = False
-    # else:
-        st.rerun()
+        # Show the results by reloading the page if there are no errors
+        if st.session_state.error_present:
+            st.session_state.error_present = False
+        else:
+            st.rerun()
 
 
 def create_image():
@@ -402,7 +402,6 @@ def openai_create():
 
     if not authen:
         st.error("**Incorrect password. Please try again.**", icon="🚨")
-        st.session_state.error_present = True
     else:
         if option == 'Text (GPT 3.5)':
             create_text("gpt-3.5-turbo")
