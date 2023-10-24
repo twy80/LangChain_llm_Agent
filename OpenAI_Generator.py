@@ -48,6 +48,7 @@ def openai_create_text(
         except openai.error.OpenAIError as e:
             generated_text = None
             st.error(f"An error occurred: {e}", icon="🚨")
+            st.session_state.error_present = True
 
         if generated_text:
             # Add the generated output to the prompt
@@ -308,13 +309,13 @@ def create_text(model):
             st.session_state.ai_resp.append(st.session_state.generated_text)
             # clipboard.copy(st.session_state.generated_text)
 
-            # Show the results by reloading the page if there are no errors
-            if st.session_state.error_present:
-                st.session_state.error_present = False
-            else:
-                st.rerun()
-
         st.session_state.prompt_exists = False
+
+        # Show the results by reloading the page if there are no errors
+        if st.session_state.error_present:
+            st.session_state.error_present = False
+        else:
+            st.rerun()
 
 
 def create_image():
