@@ -362,7 +362,7 @@ def openai_create():
 
     with st.sidebar:
         st.write("")
-        st.write("**Choic of API key**")
+        st.write("**API Key Selection**")
         choice_api = st.sidebar.radio(
             "$\\hspace{0.25em}\\texttt{Choic of API}$",
             ('Your key', 'My key'),
