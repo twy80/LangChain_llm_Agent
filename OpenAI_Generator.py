@@ -276,14 +276,15 @@ def create_text(model):
         st.session_state.prompt_exists = True
 
     if st.session_state.prompt_exists:
+        with st.chat_message("human"):
+            st.write(user_prompt)
+
         openai_create_text(
             user_prompt,
             temperature=st.session_state.temp_value,
             model=model
         )
         if st.session_state.generated_text:
-            # with st.chat_message("human"):
-            #     st.write(user_prompt)
             # with st.chat_message("ai"):
             #     st.write(st.session_state.generated_text)
             # TTS under two conditions
