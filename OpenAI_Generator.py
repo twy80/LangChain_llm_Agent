@@ -8,6 +8,7 @@ from audio_recorder_streamlit import audio_recorder
 from langdetect import detect
 from gtts import gTTS
 import base64
+import os
 # from io import BytesIO
 # import clipboard
 
