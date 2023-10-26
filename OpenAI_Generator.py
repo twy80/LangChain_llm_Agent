@@ -119,18 +119,23 @@ def switch_between_apps():
 
 
 def autoplay_audio(file_path):
+    # Get the file extension from the file path
+    _, ext = os.path.splitext(file_path)
+
+    # Determine the MIME type based on the file extension
+    mime_type = f"audio/{ext.lower()[1:]}"  # Remove the leading dot from the extension
+
     with open(file_path, "rb") as f:
         data = f.read()
         b64 = base64.b64encode(data).decode()
+
         md = f"""
             <audio controls autoplay style="width: 100%;">
-            <source src="data:audio/wav;base64,{b64}" type="audio/wav">
+            <source src="data:{mime_type};base64,{b64}" type="{mime_type}">
             </audio>
             """
-        st.markdown(
-            md,
-            unsafe_allow_html=True,
-        )
+
+        st.markdown(md, unsafe_allow_html=True)
 
 
 def create_text(model):
@@ -246,7 +251,7 @@ def create_text(model):
 
     # Use your microphone
     audio_bytes = audio_recorder(
-        pause_threshold=2.0,
+        pause_threshold=3.0,
         # sample_rate=sr,
         text="Speak",
         recording_color="#e87070",
