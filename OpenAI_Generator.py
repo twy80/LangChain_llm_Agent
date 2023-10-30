@@ -119,6 +119,10 @@ def switch_between_apps():
     st.session_state.prev_audio_bytes = None
 
 
+def enable_user_input():
+    st.session_state.prompt_exists = True
+
+
 def autoplay_audio(file_path):
     # Get the file extension from the file path
     _, ext = os.path.splitext(file_path)
@@ -248,7 +252,10 @@ def create_text(model):
     )
 
     # Use your keyboard
-    user_input = st.chat_input(placeholder="Enter your query")
+    user_input = st.chat_input(
+        placeholder="Enter your query",
+        on_submit=enable_user_input
+    )
 
     # Use your microphone
     audio_bytes = audio_recorder(
@@ -277,9 +284,8 @@ def create_text(model):
         except Exception as e:
             st.error(f"An error occurred: {e}", icon="🚨")
         st.session_state.prev_audio_bytes = audio_bytes
-    elif user_input:
+    elif user_input and st.session_state.prompt_exists:
         user_prompt = user_input.strip()
-        st.session_state.prompt_exists = True
 
     if st.session_state.prompt_exists:
         with st.chat_message("human"):
