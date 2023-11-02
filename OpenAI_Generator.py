@@ -9,15 +9,12 @@ from langdetect import detect
 from gtts import gTTS
 import base64
 import os
+
 # from io import BytesIO
 # import clipboard
 
 
-def openai_create_text(
-        user_prompt,
-        temperature=0.7,
-        model="gpt-3.5-turbo"
-    ):
+def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
     """
     This function generates text based on user input.
 
@@ -31,9 +28,7 @@ def openai_create_text(
 
     if user_prompt:
         # Add the user input to the prompt
-        st.session_state.prompt.append(
-            {"role": "user", "content": user_prompt}
-        )
+        st.session_state.prompt.append({"role": "user", "content": user_prompt})
         try:
             with st.spinner("AI is thinking..."):
                 response = openai.ChatCompletion.create(
@@ -80,16 +75,9 @@ def openai_create_image(description, size="512x512"):
 
     try:
         with st.spinner("AI is generating..."):
-            response = openai.Image.create(
-                prompt=description,
-                n=1,
-                size=size
-            )
-        image_url = response['data'][0]['url']
-        st.image(
-            image=image_url,
-            use_column_width=True
-        )
+            response = openai.Image.create(prompt=description, n=1, size=size)
+        image_url = response["data"][0]["url"]
+        st.image(image=image_url, use_column_width=True)
     except openai.error.OpenAIError as e:
         st.error(f"An error occurred: {e}", icon="🚨")
 
@@ -203,25 +191,31 @@ def create_text(model):
         st.write("**Text to Speech**")
         st.session_state.tts = st.radio(
             "$\\hspace{0.08em}\\texttt{TTS}$",
-            ('Enabled', 'Disabled', 'Auto'),
+            ("Enabled", "Disabled", "Auto"),
             # horizontal=True,
-            index=2, label_visibility="collapsed"
+            index=2,
+            label_visibility="collapsed",
         )
         st.write("")
         st.write("**Temperature**")
         st.session_state.temp_value = st.slider(
             label="$\\hspace{0.08em}\\texttt{Temperature}\,$ (higher $\Rightarrow$ more random)",
-            min_value=0.0, max_value=2.0, value=st.session_state.initial_temp,
-            step=0.1, format="%.1f",
-            label_visibility="collapsed"
+            min_value=0.0,
+            max_value=2.0,
+            value=st.session_state.initial_temp,
+            step=0.1,
+            format="%.1f",
+            label_visibility="collapsed",
         )
         st.write("(Higher $\Rightarrow$ More random)")
 
     st.write("")
     st.write("##### Message to AI")
     ai_role = st.selectbox(
-        "AI's role", roles, index=roles.index(st.session_state.prev_ai_role),
-        label_visibility="collapsed"
+        "AI's role",
+        roles,
+        index=roles.index(st.session_state.prev_ai_role),
+        label_visibility="collapsed",
     )
 
     if ai_role != st.session_state.prev_ai_role:
@@ -234,7 +228,7 @@ def create_text(model):
     right.write("Click on the mic icon and speak, or type text below.")
 
     # Print conversations
-    for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
+    for human, ai in zip(st.session_state.human_enq, st.session_state.ai_resp):
         with st.chat_message("human"):
             st.write(human)
         with st.chat_message("ai"):
@@ -246,15 +240,11 @@ def create_text(model):
         st.session_state.play_audio = False
 
     # Reset the conversation
-    st.button(
-        label="Reset the conversation",
-        on_click=reset_conversation
-    )
+    st.button(label="Reset the conversation", on_click=reset_conversation)
 
     # Use your keyboard
     user_input = st.chat_input(
-        placeholder="Enter your query",
-        on_submit=enable_user_input
+        placeholder="Enter your query", on_submit=enable_user_input
     )
 
     # Use your microphone
@@ -278,7 +268,7 @@ def create_text(model):
             # audio_data.name = "recorded_audio.wav"
 
             transcript = openai.Audio.transcribe("whisper-1", audio_data)
-            user_prompt = transcript['text']
+            user_prompt = transcript["text"]
             st.session_state.prompt_exists = True
             st.session_state.mic_used = True
         except Exception as e:
@@ -292,16 +282,14 @@ def create_text(model):
             st.write(user_prompt)
 
         openai_create_text(
-            user_prompt,
-            temperature=st.session_state.temp_value,
-            model=model
+            user_prompt, temperature=st.session_state.temp_value, model=model
         )
         if st.session_state.generated_text:
             # with st.chat_message("ai"):
             #     st.write(st.session_state.generated_text)
             # TTS under two conditions
-            cond1 = st.session_state.tts == 'Enabled'
-            cond2 = st.session_state.tts == 'Auto' and st.session_state.mic_used
+            cond1 = st.session_state.tts == "Enabled"
+            cond2 = st.session_state.tts == "Auto" and st.session_state.mic_used
             if cond1 or cond2:
                 try:
                     with st.spinner("TTS in progress..."):
@@ -343,10 +331,10 @@ def create_image():
         st.write("**Pixel size**")
         image_size = st.radio(
             "$\\hspace{0.1em}\\texttt{Pixel size}$",
-            ('256x256', '512x512', '1024x1024'),
+            ("256x256", "512x512", "1024x1024"),
             # horizontal=True,
             index=1,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
         )
 
     # Get the image description from the user
@@ -355,14 +343,11 @@ def create_image():
     description = st.text_area(
         label="$\\hspace{0.1em}\\texttt{Description for your image}\,$ (in $\,$English)",
         # value="",
-        label_visibility="collapsed"
+        label_visibility="collapsed",
     )
 
-    left, _ = st.columns(2) # To show the results below the button
-    left.button(
-        label="Generate",
-        on_click=openai_create_image(description, image_size)
-    )
+    left, _ = st.columns(2)  # To show the results below the button
+    left.button(label="Generate", on_click=openai_create_image(description, image_size))
 
 
 def openai_create():
@@ -377,18 +362,18 @@ def openai_create():
         st.write("**API Key Selection**")
         choice_api = st.sidebar.radio(
             "$\\hspace{0.25em}\\texttt{Choic of API}$",
-            ('Your key', 'My key'),
+            ("Your key", "My key"),
             label_visibility="collapsed",
             horizontal=True,
-            on_change=reset_conversation
+            on_change=reset_conversation,
         )
 
-        if choice_api == 'Your key':
+        if choice_api == "Your key":
             st.write("**Your API Key**")
             openai.api_key = st.text_input(
                 label="$\\hspace{0.25em}\\texttt{Your OpenAI API Key}$",
                 type="password",
-                label_visibility="collapsed"
+                label_visibility="collapsed",
             )
             # st.write("You can obtain an API key from https://beta.openai.com")
             authen = True
@@ -405,18 +390,18 @@ def openai_create():
         st.write("**What to Generate**")
         option = st.sidebar.radio(
             "$\\hspace{0.25em}\\texttt{What to generate}$",
-            ('Text (GPT 3.5)', 'Text (GPT 4)', 'Image (DALL·E)'),
+            ("Text (GPT 3.5)", "Text (GPT 4)", "Image (DALL·E)"),
             label_visibility="collapsed",
             # horizontal=True,
-            on_change=switch_between_apps
+            on_change=switch_between_apps,
         )
 
     if not authen:
         st.error("**Incorrect password. Please try again.**", icon="🚨")
     else:
-        if option == 'Text (GPT 3.5)':
+        if option == "Text (GPT 3.5)":
             create_text("gpt-3.5-turbo")
-        elif option == 'Text (GPT 4)':
+        elif option == "Text (GPT 4)":
             create_text("gpt-4")
         else:
             create_image()
@@ -424,10 +409,10 @@ def openai_create():
     with st.sidebar:
         st.write("---")
         st.write(
-          "<small>**T.-W. Yoon**, Aug. 2023  \n</small>",
-          "<small>[TWY's Playground](https://twy-playground.streamlit.app/)  \n</small>",
-          "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
-          unsafe_allow_html=True
+            "<small>**T.-W. Yoon**, Aug. 2023  \n</small>",
+            "<small>[TWY's Playground](https://twy-playground.streamlit.app/)  \n</small>",
+            "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
+            unsafe_allow_html=True,
         )
 
 
