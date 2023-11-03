@@ -190,8 +190,8 @@ def create_text(model):
         st.write("")
         st.write("**Text to Speech**")
         st.session_state.tts = st.radio(
-            "$\\hspace{0.08em}\\texttt{TTS}$",
-            ("Enabled", "Disabled", "Auto"),
+            label="$\\hspace{0.08em}\\texttt{TTS}$",
+            options=("Enabled", "Disabled", "Auto"),
             # horizontal=True,
             index=2,
             label_visibility="collapsed",
@@ -330,8 +330,8 @@ def create_image():
         st.write("")
         st.write("**Pixel size**")
         image_size = st.radio(
-            "$\\hspace{0.1em}\\texttt{Pixel size}$",
-            ("256x256", "512x512", "1024x1024"),
+            label="$\\hspace{0.1em}\\texttt{Pixel size}$",
+            options=("256x256", "512x512", "1024x1024"),
             # horizontal=True,
             index=1,
             label_visibility="collapsed",
@@ -361,8 +361,8 @@ def openai_create():
         st.write("")
         st.write("**API Key Selection**")
         choice_api = st.sidebar.radio(
-            "$\\hspace{0.25em}\\texttt{Choic of API}$",
-            ("Your key", "My key"),
+            label="$\\hspace{0.25em}\\texttt{Choic of API}$",
+            options=("Your key", "My key"),
             label_visibility="collapsed",
             horizontal=True,
             on_change=reset_conversation,
@@ -389,8 +389,8 @@ def openai_create():
         st.write("")
         st.write("**What to Generate**")
         option = st.sidebar.radio(
-            "$\\hspace{0.25em}\\texttt{What to generate}$",
-            ("Text (GPT 3.5)", "Text (GPT 4)", "Image (DALL·E)"),
+            label="$\\hspace{0.25em}\\texttt{What to generate}$",
+            options=("Text (GPT 3.5)", "Text (GPT 4)", "Image (DALL·E)"),
             label_visibility="collapsed",
             # horizontal=True,
             on_change=switch_between_apps,
