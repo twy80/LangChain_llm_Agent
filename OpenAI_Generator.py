@@ -2,15 +2,12 @@
 ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 """
 
-import openai
 import streamlit as st
+import openai
 from audio_recorder_streamlit import audio_recorder
-from langdetect import detect
-from gtts import gTTS
 import base64
 import os
-
-# from io import BytesIO
+from io import BytesIO
 # import clipboard
 
 
@@ -31,17 +28,13 @@ def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
         st.session_state.prompt.append({"role": "user", "content": user_prompt})
         try:
             with st.spinner("AI is thinking..."):
-                response = openai.ChatCompletion.create(
+                response = st.session_state.client.chat.completions.create(
                     model=model,
                     messages=st.session_state.prompt,
                     temperature=temperature,
-                    # max_tokens=4096,
-                    # top_p=1,
-                    # frequency_penalty=0,
-                    # presence_penalty=0.6,
                 )
             generated_text = response.choices[0].message.content
-        except openai.error.OpenAIError as e:
+        except Exception as e:
             generated_text = None
             st.error(f"An error occurred: {e}", icon="🚨")
             st.session_state.error_present = True
@@ -59,7 +52,7 @@ def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
     return None
 
 
-def openai_create_image(description, size="512x512"):
+def openai_create_image(description, size="1024x1024"):
     """
     This function generates image based on user description.
 
@@ -75,10 +68,16 @@ def openai_create_image(description, size="512x512"):
 
     try:
         with st.spinner("AI is generating..."):
-            response = openai.Image.create(prompt=description, n=1, size=size)
-        image_url = response["data"][0]["url"]
+            response = st.session_state.client.images.generate(
+                model="dall-e-3",
+                prompt=description,
+                size=size,
+                quality="standard",
+                n=1,
+            )
+        image_url = response.data[0].url
         st.image(image=image_url, use_column_width=True)
-    except openai.error.OpenAIError as e:
+    except Exception as e:
         st.error(f"An error occurred: {e}", icon="🚨")
 
     return None
@@ -86,7 +85,7 @@ def openai_create_image(description, size="512x512"):
 
 def reset_conversation():
     # to_clipboard = ""
-    # for (human, ai) in zip(st.session_state.human_enq, st.session_state.ai_resp):
+    # for human, ai in zip(st.session_state.human_enq, st.session_state.ai_resp):
     #     to_clipboard += "\nHuman: " + human + "\n"
     #     to_clipboard += "\nAI: " + ai + "\n"
     # clipboard.copy(to_clipboard)
@@ -140,7 +139,7 @@ def create_text(model):
     """
 
     # Audio file for TTS
-    audio_file = "files/recorded_audio.wav"
+    # audio_file = "files/recorded_audio.wav"
     text_audio_file = "files/output_text.wav"
 
     # initial system prompts
@@ -201,7 +200,7 @@ def create_text(model):
         st.session_state.temp_value = st.slider(
             label="$\\hspace{0.08em}\\texttt{Temperature}\,$ (higher $\Rightarrow$ more random)",
             min_value=0.0,
-            max_value=2.0,
+            max_value=1.0,
             value=st.session_state.initial_temp,
             step=0.1,
             format="%.1f",
@@ -260,15 +259,17 @@ def create_text(model):
 
     if audio_bytes != st.session_state.prev_audio_bytes:
         try:
-            with open(audio_file, "wb") as recorded_file:
-                recorded_file.write(audio_bytes)
-            audio_data = open(audio_file, "rb")
+            # with open(audio_file, "wb") as recorded_file:
+            #     recorded_file.write(audio_bytes)
+            # audio_data = open(audio_file, "rb")
 
-            # audio_data = BytesIO(audio_bytes)
-            # audio_data.name = "recorded_audio.wav"
+            audio_data = BytesIO(audio_bytes)
+            audio_data.name = "recorded_audio.wav"
 
-            transcript = openai.Audio.transcribe("whisper-1", audio_data)
-            user_prompt = transcript["text"]
+            transcript = st.session_state.client.audio.transcriptions.create(
+                model="whisper-1", file=audio_data
+            )
+            user_prompt = transcript.text
             st.session_state.prompt_exists = True
             st.session_state.mic_used = True
         except Exception as e:
@@ -293,9 +294,12 @@ def create_text(model):
             if cond1 or cond2:
                 try:
                     with st.spinner("TTS in progress..."):
-                        lang = detect(st.session_state.generated_text)
-                        tts = gTTS(text=st.session_state.generated_text, lang=lang)
-                        tts.save(text_audio_file)
+                        audio_response = st.session_state.client.audio.speech.create(
+                            model="tts-1",
+                            voice="shimmer",
+                            input=st.session_state.generated_text,
+                        )
+                        audio_response.stream_to_file(text_audio_file)
                         # text_audio_file = BytesIO()
                         # tts.write_to_fp(text_audio_file)
                     # autoplay_audio(text_audio_file)
@@ -331,9 +335,9 @@ def create_image():
         st.write("**Pixel size**")
         image_size = st.radio(
             label="$\\hspace{0.1em}\\texttt{Pixel size}$",
-            options=("256x256", "512x512", "1024x1024"),
+            options=("1024x1024", "1792x1024", "1024x1792"),
             # horizontal=True,
-            index=1,
+            index=0,
             label_visibility="collapsed",
         )
 
@@ -347,7 +351,10 @@ def create_image():
     )
 
     left, _ = st.columns(2)  # To show the results below the button
-    left.button(label="Generate", on_click=openai_create_image(description, image_size))
+    left.button(
+        label="Generate",
+        on_click=openai_create_image(description, image_size)
+    )
 
 
 def openai_create():
@@ -355,6 +362,10 @@ def openai_create():
     This main function generates text or image by calling
     openai_create_text() or openai_create_image(), respectively.
     """
+
+    if "client" not in st.session_state:
+        st.session_state.client = None
+
     st.write("## 🎭 ChatGPT & DALL·E")
 
     with st.sidebar:
@@ -370,7 +381,7 @@ def openai_create():
 
         if choice_api == "Your key":
             st.write("**Your API Key**")
-            openai.api_key = st.text_input(
+            api_key = st.text_input(
                 label="$\\hspace{0.25em}\\texttt{Your OpenAI API Key}$",
                 type="password",
                 label_visibility="collapsed",
@@ -378,7 +389,7 @@ def openai_create():
             # st.write("You can obtain an API key from https://beta.openai.com")
             authen = True
         else:
-            openai.api_key = st.secrets["OPENAI_API_KEY"]
+            api_key = st.secrets["OPENAI_API_KEY"]
             stored_pin = st.secrets["USER_PIN"]
             st.write("**Password**")
             user_pin = st.text_input(
@@ -386,11 +397,13 @@ def openai_create():
             )
             authen = user_pin == stored_pin
 
+        st.session_state.client = openai.OpenAI(api_key=api_key)
+
         st.write("")
         st.write("**What to Generate**")
         option = st.sidebar.radio(
             label="$\\hspace{0.25em}\\texttt{What to generate}$",
-            options=("Text (GPT 3.5)", "Text (GPT 4)", "Image (DALL·E)"),
+            options=("Text (GPT 3.5)", "Text (GPT 4)", "Image (DALL·E 3)"),
             label_visibility="collapsed",
             # horizontal=True,
             on_change=switch_between_apps,
