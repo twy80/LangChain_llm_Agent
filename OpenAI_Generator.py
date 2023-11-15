@@ -459,7 +459,7 @@ def create_image():
 
     # Get the image description from the user
     st.write("")
-    st.write(f"##### Description for your image (in English)")
+    st.write(f"##### Description for your image")
     description = st.text_area(
         label="$\\hspace{0.1em}\\texttt{Description for your image}\,$ (in $\,$English)",
         # value="",
