@@ -2,3 +2,4 @@ openai
 streamlit
 audio-recorder-streamlit
 langchain
+faiss-cpu
