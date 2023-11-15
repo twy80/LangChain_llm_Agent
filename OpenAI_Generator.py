@@ -5,10 +5,15 @@ ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 import streamlit as st
 import openai
 from audio_recorder_streamlit import audio_recorder
-import base64
-import os
-from io import BytesIO
-# import clipboard
+import os, io, base64
+from langchain.document_loaders import PyPDFLoader
+from langchain.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import FAISS
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.chat_models import ChatOpenAI
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationalRetrievalChain
 
 
 def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
@@ -17,10 +22,13 @@ def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
 
     Args:
         user_prompt (string): User input
-        temperature (float): Value between 0 and 2. Defaults to 0.7
+        temperature (float): Value between 0 and 1. Defaults to 0.7
         model (string): "gpt-3.5-turbo" or "gpt-4".
 
-    The results are stored in st.session_state variables.
+    Return:
+        generated text
+
+    All the conversations are stored in st.session_state variables.
     """
 
     if user_prompt:
@@ -44,12 +52,10 @@ def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
             st.session_state.prompt.append(
                 {"role": "assistant", "content": generated_text}
             )
-            st.session_state.generated_text = generated_text
     else:
-        st.session_state.generated_text = None
-        return None
+        generated_text = None
 
-    return None
+    return generated_text
 
 
 def openai_create_image(description, size="1024x1024"):
@@ -84,12 +90,6 @@ def openai_create_image(description, size="1024x1024"):
 
 
 def reset_conversation():
-    # to_clipboard = ""
-    # for human, ai in zip(st.session_state.human_enq, st.session_state.ai_resp):
-    #     to_clipboard += "\nHuman: " + human + "\n"
-    #     to_clipboard += "\nAI: " + ai + "\n"
-    # clipboard.copy(to_clipboard)
-    st.session_state.generated_text = None
     st.session_state.prompt = [
         {"role": "system", "content": st.session_state.prev_ai_role}
     ]
@@ -99,11 +99,12 @@ def reset_conversation():
     st.session_state.initial_temp = st.session_state.temp_value
     st.session_state.play_audio = False
     st.session_state.error_present = False
+    st.session_state.vector_store = None
+    st.session_state.conversation = None
 
 
 def switch_between_apps():
     st.session_state.initial_temp = st.session_state.temp_value
-    st.session_state.prev_audio_bytes = None
 
 
 def enable_user_input():
@@ -130,6 +131,74 @@ def autoplay_audio(file_path):
         st.markdown(md, unsafe_allow_html=True)
 
 
+def get_vector_store(uploaded_file):
+    """
+    This function takes an UploadedFile object as input,
+    and returns a FAISS vector store.
+    """
+
+    uploaded_document = "files/uploaded_document"
+
+    if uploaded_file is None:
+        return None
+    else:
+        file_bytes = io.BytesIO(uploaded_file.read())
+        with open(uploaded_document, "wb") as f:
+            f.write(file_bytes.read())
+
+        # Determine the loader based on the file extension.
+        if uploaded_file.name.lower().endswith(".pdf"):
+            loader = PyPDFLoader(uploaded_document)
+        elif uploaded_file.name.lower().endswith(".txt"):
+            loader = TextLoader(uploaded_document)
+        # elif uploaded_file.name.lower().endswith(".md"):
+        #     loader = UnstructuredMarkdownLoader(uploaded_document)
+        else:
+            st.error("Please load a file in pdf or txt", icon="🚨")
+            return None
+
+        # Load the document using the selected loader.
+        document = loader.load()
+
+        with st.spinner("Vector store in preparation..."):
+            # Split the loaded text into smaller chunks for processing.
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                # separators=["\n", "\n\n", "(?<=\. )", "", " "],
+            )
+
+            doc = text_splitter.split_documents(document)
+
+            # Create a FAISS vector database.
+            embeddings = OpenAIEmbeddings()
+            vector_store = FAISS.from_documents(doc, embeddings)
+
+        return vector_store
+
+
+def get_conversation_chain(vector_store, temperature=0, model="gpt-3.5-turbo"):
+    """
+    This function takes a vector store, a numerical value between 0 and 1 for
+    temperature and a llm model as input, and returns a conversational chain.
+    """
+
+    openai_llm = ChatOpenAI(temperature=temperature, model_name=model)
+
+    memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True,
+    )
+
+    conversation_chain = ConversationalRetrievalChain.from_llm(
+        llm=openai_llm,
+        retriever=vector_store.as_retriever(),
+        memory=memory,
+    )
+
+    return conversation_chain
+
+
 def create_text(model):
     """
     This function geneates text based on user input
@@ -139,7 +208,6 @@ def create_text(model):
     """
 
     # Audio file for TTS
-    # audio_file = "files/recorded_audio.wav"
     text_audio_file = "files/output_text.wav"
 
     # initial system prompts
@@ -147,11 +215,8 @@ def create_text(model):
     english_teacher = "You are an English teacher who analyzes texts and corrects any grammatical issues if necessary."
     translator = "You are a translator who translates English into Korean and Korean into English."
     coding_adviser = "You are an expert in coding who provides advice on good coding styles."
-    close_friend = "You are a close friend of mine."
-    roles = (general_role, english_teacher, translator, coding_adviser, close_friend)
-
-    if "generated_text" not in st.session_state:
-        st.session_state.generated_text = None
+    doc_analyzer = "You are an assistant analyzing the document uploaded."
+    roles = (general_role, english_teacher, translator, coding_adviser, doc_analyzer)
 
     if "prev_ai_role" not in st.session_state:
         st.session_state.prev_ai_role = general_role
@@ -184,6 +249,13 @@ def create_text(model):
 
     if "error_present" not in st.session_state:
         st.session_state.error_present = False
+
+    # session_state variables for RAG
+    if "vector_store" not in st.session_state:
+        st.session_state.vector_store = None
+
+    if "conversation" not in st.session_state:
+        st.session_state.conversation = None
 
     with st.sidebar:
         st.write("")
@@ -221,6 +293,34 @@ def create_text(model):
         st.session_state.prev_ai_role = ai_role
         reset_conversation()
 
+    if ai_role == doc_analyzer:
+        st.write("")
+        left, right = st.columns([4, 7])
+        left.write("##### Document to ask about")
+        right.write("Temperature is set to 0.")
+        uploaded_file = st.file_uploader(
+            label="Upload an article",
+            type=["txt", "pdf"],
+            accept_multiple_files=False,
+            on_change=reset_conversation,
+            label_visibility="collapsed",
+        )
+        if st.session_state.vector_store is None:
+            # Create the vector store.
+            st.session_state.vector_store = get_vector_store(uploaded_file)
+
+            if st.session_state.vector_store is None:
+                st.session_state.error_present = True
+            else:
+                st.write(f"Vector store for :blue[[{uploaded_file.name}]] is ready!")
+                # st.session_state.vector_store_ready = True
+                # Create the conversation chain.
+                st.session_state.conversation = get_conversation_chain(
+                    st.session_state.vector_store,
+                    temperature=0.0,
+                    model=model,
+                )
+
     st.write("")
     left, right = st.columns([4, 7])
     left.write("##### Conversation with AI")
@@ -243,7 +343,9 @@ def create_text(model):
 
     # Use your keyboard
     user_input = st.chat_input(
-        placeholder="Enter your query", on_submit=enable_user_input
+        placeholder="Enter your query",
+        on_submit=enable_user_input,
+        disabled=not uploaded_file if ai_role == doc_analyzer else False,
     )
 
     # Use your microphone
@@ -263,7 +365,7 @@ def create_text(model):
             #     recorded_file.write(audio_bytes)
             # audio_data = open(audio_file, "rb")
 
-            audio_data = BytesIO(audio_bytes)
+            audio_data = io.BytesIO(audio_bytes)
             audio_data.name = "recorded_audio.wav"
 
             transcript = st.session_state.client.audio.transcriptions.create(
@@ -282,12 +384,31 @@ def create_text(model):
         with st.chat_message("human"):
             st.write(user_prompt)
 
-        openai_create_text(
-            user_prompt, temperature=st.session_state.temp_value, model=model
-        )
-        if st.session_state.generated_text:
+        # For the case where there is a document to ask about (RAG)
+        if ai_role == doc_analyzer:
+            if st.session_state.vector_store is not None:
+                with st.spinner("AI is thinking..."):
+                    try:
+                        # response to the query is given in the form
+                        # {"question": ..., "chat_history": [...], "answer": ...}.
+                        response = st.session_state.conversation(
+                            {"question": user_prompt}
+                        )
+                        generated_text = response["answer"]
+
+                    except Exception as e:
+                        generated_text = None
+                        st.error(f"An error occurred: {e}", icon="🚨")
+                        st.session_state.error_present = True
+
+        else:  # General chatting
+            generated_text = openai_create_text(
+                user_prompt, temperature=st.session_state.temp_value, model=model
+            )
+
+        if generated_text:
             # with st.chat_message("ai"):
-            #     st.write(st.session_state.generated_text)
+            #     st.write(generated_text)
             # TTS under two conditions
             cond1 = st.session_state.tts == "Enabled"
             cond2 = st.session_state.tts == "Auto" and st.session_state.mic_used
@@ -297,13 +418,9 @@ def create_text(model):
                         audio_response = st.session_state.client.audio.speech.create(
                             model="tts-1",
                             voice="shimmer",
-                            input=st.session_state.generated_text,
+                            input=generated_text,
                         )
                         audio_response.stream_to_file(text_audio_file)
-                        # text_audio_file = BytesIO()
-                        # tts.write_to_fp(text_audio_file)
-                    # autoplay_audio(text_audio_file)
-                    # st.audio(text_audio_file.getvalue())
                     st.session_state.play_audio = True
                 except Exception as e:
                     st.error(f"An error occurred: {e}", icon="🚨")
@@ -311,8 +428,7 @@ def create_text(model):
 
             st.session_state.mic_used = False
             st.session_state.human_enq.append(user_prompt)
-            st.session_state.ai_resp.append(st.session_state.generated_text)
-            # clipboard.copy(st.session_state.generated_text)
+            st.session_state.ai_resp.append(generated_text)
 
         st.session_state.prompt_exists = False
 
