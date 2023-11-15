@@ -3,4 +3,4 @@ streamlit
 audio-recorder-streamlit
 langchain
 faiss-cpu
-pypdf
+titoken
