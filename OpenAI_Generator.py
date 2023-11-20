@@ -213,6 +213,8 @@ def openai_doc_answer(user_prompt):
         except Exception as e:
             generated_text = None
             st.error(f"An error occurred: {e}", icon="🚨")
+    else:
+        generated_text = None
 
     return generated_text
 
