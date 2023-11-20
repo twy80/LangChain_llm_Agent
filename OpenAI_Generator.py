@@ -5,7 +5,7 @@ ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 import streamlit as st
 import openai
 from audio_recorder_streamlit import audio_recorder
-import os, io, base64
+import os, io, base64, time
 from langchain.document_loaders import PyPDFLoader
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -45,7 +45,6 @@ def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
         except Exception as e:
             generated_text = None
             st.error(f"An error occurred: {e}", icon="🚨")
-            st.session_state.error_present = True
 
         if generated_text:
             # Add the generated output to the prompt
@@ -98,7 +97,6 @@ def reset_conversation():
     st.session_state.ai_resp = []
     st.session_state.initial_temp = st.session_state.temp_value
     st.session_state.play_audio = False
-    st.session_state.error_present = False
     st.session_state.vector_store = None
     st.session_state.conversation = None
 
@@ -247,9 +245,6 @@ def create_text(model):
     if "play_audio" not in st.session_state:
         st.session_state.play_audio = False
 
-    if "error_present" not in st.session_state:
-        st.session_state.error_present = False
-
     # session_state variables for RAG
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
@@ -310,7 +305,7 @@ def create_text(model):
             st.session_state.vector_store = get_vector_store(uploaded_file)
 
             if st.session_state.vector_store is None:
-                st.session_state.error_present = True
+                st.session_state.generated_text = None
             else:
                 st.write(f"Vector store for :blue[[{uploaded_file.name}]] is ready!")
                 # st.session_state.vector_store_ready = True
@@ -399,7 +394,6 @@ def create_text(model):
                     except Exception as e:
                         generated_text = None
                         st.error(f"An error occurred: {e}", icon="🚨")
-                        st.session_state.error_present = True
 
         else:  # General chatting
             generated_text = openai_create_text(
@@ -424,7 +418,7 @@ def create_text(model):
                     st.session_state.play_audio = True
                 except Exception as e:
                     st.error(f"An error occurred: {e}", icon="🚨")
-                    st.session_state.error_present = True
+                    time.sleep(2)
 
             st.session_state.mic_used = False
             st.session_state.human_enq.append(user_prompt)
@@ -432,10 +426,7 @@ def create_text(model):
 
         st.session_state.prompt_exists = False
 
-        # Show the results by reloading the page if there are no errors
-        if st.session_state.error_present:
-            st.session_state.error_present = False
-        else:
+        if generated_text is not None:
             st.rerun()
 
 
