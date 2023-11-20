@@ -31,28 +31,25 @@ def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
     All the conversations are stored in st.session_state variables.
     """
 
-    if user_prompt:
-        # Add the user input to the prompt
-        st.session_state.prompt.append({"role": "user", "content": user_prompt})
-        try:
-            with st.spinner("AI is thinking..."):
-                response = st.session_state.client.chat.completions.create(
-                    model=model,
-                    messages=st.session_state.prompt,
-                    temperature=temperature,
-                )
-            generated_text = response.choices[0].message.content
-        except Exception as e:
-            generated_text = None
-            st.error(f"An error occurred: {e}", icon="🚨")
-
-        if generated_text:
-            # Add the generated output to the prompt
-            st.session_state.prompt.append(
-                {"role": "assistant", "content": generated_text}
+    # Add the user input to the prompt
+    st.session_state.prompt.append({"role": "user", "content": user_prompt})
+    try:
+        with st.spinner("AI is thinking..."):
+            response = st.session_state.client.chat.completions.create(
+                model=model,
+                messages=st.session_state.prompt,
+                temperature=temperature,
             )
-    else:
+        generated_text = response.choices[0].message.content
+    except Exception as e:
         generated_text = None
+        st.error(f"An error occurred: {e}", icon="🚨")
+
+    if generated_text:
+        # Add the generated output to the prompt
+        st.session_state.prompt.append(
+            {"role": "assistant", "content": generated_text}
+        )
 
     return generated_text
 
@@ -197,6 +194,29 @@ def get_conversation_chain(vector_store, temperature=0, model="gpt-3.5-turbo"):
     return conversation_chain
 
 
+def openai_doc_answer(user_prompt):
+    """
+    This function takes a user prompt as input, and generates text using
+    st.session_state.conversation() on the uploaded document.
+    """
+
+    if st.session_state.conversation is not None:
+        try:
+            with st.spinner("AI is thinking..."):
+                # response to the query is given in the form
+                # {"question": ..., "chat_history": [...], "answer": ...}.
+                response = st.session_state.conversation(
+                    {"question": user_prompt}
+                )
+                generated_text = response["answer"]
+
+        except Exception as e:
+            generated_text = None
+            st.error(f"An error occurred: {e}", icon="🚨")
+
+    return generated_text
+
+
 def create_text(model):
     """
     This function geneates text based on user input
@@ -304,9 +324,7 @@ def create_text(model):
             # Create the vector store.
             st.session_state.vector_store = get_vector_store(uploaded_file)
 
-            if st.session_state.vector_store is None:
-                st.session_state.generated_text = None
-            else:
+            if st.session_state.vector_store is not None:
                 st.write(f"Vector store for :blue[[{uploaded_file.name}]] is ready!")
                 # st.session_state.vector_store_ready = True
                 # Create the conversation chain.
@@ -379,28 +397,14 @@ def create_text(model):
         with st.chat_message("human"):
             st.write(user_prompt)
 
-        # For the case where there is a document to ask about (RAG)
-        if ai_role == doc_analyzer:
-            if st.session_state.vector_store is not None:
-                with st.spinner("AI is thinking..."):
-                    try:
-                        # response to the query is given in the form
-                        # {"question": ..., "chat_history": [...], "answer": ...}.
-                        response = st.session_state.conversation(
-                            {"question": user_prompt}
-                        )
-                        generated_text = response["answer"]
-
-                    except Exception as e:
-                        generated_text = None
-                        st.error(f"An error occurred: {e}", icon="🚨")
-
+        if ai_role == doc_analyzer:  # RAG (when there is a document uploaded)
+            generated_text = openai_doc_answer(user_prompt)
         else:  # General chatting
             generated_text = openai_create_text(
                 user_prompt, temperature=st.session_state.temp_value, model=model
             )
 
-        if generated_text:
+        if generated_text is not None:
             # with st.chat_message("ai"):
             #     st.write(generated_text)
             # TTS under two conditions
