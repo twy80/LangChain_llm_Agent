@@ -181,8 +181,7 @@ def get_conversation_chain(vector_store, temperature=0, model="gpt-3.5-turbo"):
     openai_llm = ChatOpenAI(temperature=temperature, model_name=model)
 
     memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
+        memory_key="chat_history", return_messages=True,
     )
 
     conversation_chain = ConversationalRetrievalChain.from_llm(
