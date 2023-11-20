@@ -85,47 +85,6 @@ def openai_create_image(description, size="1024x1024"):
     return None
 
 
-def reset_conversation():
-    st.session_state.prompt = [
-        {"role": "system", "content": st.session_state.prev_ai_role}
-    ]
-    st.session_state.prompt_exists = False
-    st.session_state.human_enq = []
-    st.session_state.ai_resp = []
-    st.session_state.initial_temp = st.session_state.temp_value
-    st.session_state.play_audio = False
-    st.session_state.vector_store = None
-    st.session_state.conversation = None
-
-
-def switch_between_apps():
-    st.session_state.initial_temp = st.session_state.temp_value
-
-
-def enable_user_input():
-    st.session_state.prompt_exists = True
-
-
-def autoplay_audio(file_path):
-    # Get the file extension from the file path
-    _, ext = os.path.splitext(file_path)
-
-    # Determine the MIME type based on the file extension
-    mime_type = f"audio/{ext.lower()[1:]}"  # Remove the leading dot from the extension
-
-    with open(file_path, "rb") as f:
-        data = f.read()
-        b64 = base64.b64encode(data).decode()
-
-        md = f"""
-            <audio controls autoplay style="width: 100%;">
-            <source src="data:{mime_type};base64,{b64}" type="{mime_type}">
-            </audio>
-            """
-
-        st.markdown(md, unsafe_allow_html=True)
-
-
 def get_vector_store(uploaded_file):
     """
     This function takes an UploadedFile object as input,
@@ -216,6 +175,47 @@ def openai_doc_answer(user_prompt):
         generated_text = None
 
     return generated_text
+
+
+def reset_conversation():
+    st.session_state.prompt = [
+        {"role": "system", "content": st.session_state.prev_ai_role}
+    ]
+    st.session_state.prompt_exists = False
+    st.session_state.human_enq = []
+    st.session_state.ai_resp = []
+    st.session_state.initial_temp = st.session_state.temp_value
+    st.session_state.play_audio = False
+    st.session_state.vector_store = None
+    st.session_state.conversation = None
+
+
+def switch_between_apps():
+    st.session_state.initial_temp = st.session_state.temp_value
+
+
+def enable_user_input():
+    st.session_state.prompt_exists = True
+
+
+def autoplay_audio(file_path):
+    # Get the file extension from the file path
+    _, ext = os.path.splitext(file_path)
+
+    # Determine the MIME type based on the file extension
+    mime_type = f"audio/{ext.lower()[1:]}"  # Remove the leading dot from the extension
+
+    with open(file_path, "rb") as f:
+        data = f.read()
+        b64 = base64.b64encode(data).decode()
+
+        md = f"""
+            <audio controls autoplay style="width: 100%;">
+            <source src="data:{mime_type};base64,{b64}" type="{mime_type}">
+            </audio>
+            """
+
+        st.markdown(md, unsafe_allow_html=True)
 
 
 def create_text(model):
