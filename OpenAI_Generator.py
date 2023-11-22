@@ -125,8 +125,9 @@ def get_vector_store(uploaded_file):
                 # Create a FAISS vector database.
                 embeddings = OpenAIEmbeddings()
                 vector_store = FAISS.from_documents(doc, embeddings)
-        except Exception:
+        except Exception as e:
             vector_store = None
+            st.error(f"An error occurred: {e}", icon="🚨")
 
         return vector_store
 
