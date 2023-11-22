@@ -5,7 +5,7 @@ ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 import streamlit as st
 import openai
 from audio_recorder_streamlit import audio_recorder
-import os, io, base64, time
+import os, io, base64
 from langchain.document_loaders import PyPDFLoader
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -152,20 +152,18 @@ def get_conversation_chain(vector_store, temperature=0, model="gpt-3.5-turbo"):
     return conversation_chain
 
 
-def openai_doc_answer(user_prompt):
+def openai_doc_answer(user_prompt, conversation):
     """
-    This function takes a user prompt as input, and generates text using
-    st.session_state.conversation() on the uploaded document.
+    This function takes a user prompt and a conversation object as input,
+    and generates text on the uploaded document.
     """
 
-    if st.session_state.conversation is not None:
+    if conversation is not None:
         try:
             with st.spinner("AI is thinking..."):
                 # response to the query is given in the form
                 # {"question": ..., "chat_history": [...], "answer": ...}.
-                response = st.session_state.conversation(
-                    {"question": user_prompt}
-                )
+                response = conversation({"question": user_prompt})
                 generated_text = response["answer"]
 
         except Exception as e:
@@ -175,6 +173,68 @@ def openai_doc_answer(user_prompt):
         generated_text = None
 
     return generated_text
+
+
+def read_audio(audio_bytes):
+    """
+    This function reads audio bytes and returns the corresponding text.
+    """
+    try:
+        audio_data = io.BytesIO(audio_bytes)
+        audio_data.name = "recorded_audio.wav"  # dummy name
+
+        transcript = st.session_state.client.audio.transcriptions.create(
+            model="whisper-1", file=audio_data
+        )
+        text = transcript.text
+    except Exception:
+        text = None
+
+    return text
+
+
+def perform_tts(text):
+    """
+    This function takes text as input, performs text-to-speech (TTS),
+    and returns an audio_response.
+    """
+
+    try:
+        with st.spinner("TTS in progress..."):
+            audio_response = st.session_state.client.audio.speech.create(
+                model="tts-1",
+                voice="shimmer",
+                input=text,
+            )
+    except Exception:
+        audio_response = None
+
+    return audio_response
+
+
+def autoplay_audio(file_path):
+    """
+    This function takes an audio file as input,
+    and automatically plays the audio file.
+    """
+
+    # Get the file extension from the file path
+    _, ext = os.path.splitext(file_path)
+
+    # Determine the MIME type based on the file extension
+    mime_type = f"audio/{ext.lower()[1:]}"  # Remove the leading dot from the extension
+
+    with open(file_path, "rb") as f:
+        data = f.read()
+        b64 = base64.b64encode(data).decode()
+
+        md = f"""
+            <audio controls autoplay style="width: 100%;">
+            <source src="data:{mime_type};base64,{b64}" type="{mime_type}">
+            </audio>
+            """
+
+        st.markdown(md, unsafe_allow_html=True)
 
 
 def reset_conversation():
@@ -196,26 +256,6 @@ def switch_between_apps():
 
 def enable_user_input():
     st.session_state.prompt_exists = True
-
-
-def autoplay_audio(file_path):
-    # Get the file extension from the file path
-    _, ext = os.path.splitext(file_path)
-
-    # Determine the MIME type based on the file extension
-    mime_type = f"audio/{ext.lower()[1:]}"  # Remove the leading dot from the extension
-
-    with open(file_path, "rb") as f:
-        data = f.read()
-        b64 = base64.b64encode(data).decode()
-
-        md = f"""
-            <audio controls autoplay style="width: 100%;">
-            <source src="data:{mime_type};base64,{b64}" type="{mime_type}">
-            </audio>
-            """
-
-        st.markdown(md, unsafe_allow_html=True)
 
 
 def create_text(model):
@@ -374,22 +414,10 @@ def create_text(model):
     )
 
     if audio_bytes != st.session_state.prev_audio_bytes:
-        try:
-            # with open(audio_file, "wb") as recorded_file:
-            #     recorded_file.write(audio_bytes)
-            # audio_data = open(audio_file, "rb")
-
-            audio_data = io.BytesIO(audio_bytes)
-            audio_data.name = "recorded_audio.wav"
-
-            transcript = st.session_state.client.audio.transcriptions.create(
-                model="whisper-1", file=audio_data
-            )
-            user_prompt = transcript.text
+        user_prompt = read_audio(audio_bytes)
+        if user_prompt is not None:
             st.session_state.prompt_exists = True
             st.session_state.mic_used = True
-        except Exception as e:
-            st.error(f"An error occurred: {e}", icon="🚨")
         st.session_state.prev_audio_bytes = audio_bytes
     elif user_input and st.session_state.prompt_exists:
         user_prompt = user_input.strip()
@@ -399,7 +427,9 @@ def create_text(model):
             st.write(user_prompt)
 
         if ai_role == doc_analyzer:  # RAG (when there is a document uploaded)
-            generated_text = openai_doc_answer(user_prompt)
+            generated_text = openai_doc_answer(
+                user_prompt, st.session_state.conversation
+            )
         else:  # General chatting
             generated_text = openai_create_text(
                 user_prompt, temperature=st.session_state.temp_value, model=model
@@ -412,18 +442,10 @@ def create_text(model):
             cond1 = st.session_state.tts == "Enabled"
             cond2 = st.session_state.tts == "Auto" and st.session_state.mic_used
             if cond1 or cond2:
-                try:
-                    with st.spinner("TTS in progress..."):
-                        audio_response = st.session_state.client.audio.speech.create(
-                            model="tts-1",
-                            voice="shimmer",
-                            input=generated_text,
-                        )
-                        audio_response.stream_to_file(text_audio_file)
+                audio_response = perform_tts(generated_text)
+                if audio_response is not None:
+                    audio_response.stream_to_file(text_audio_file)
                     st.session_state.play_audio = True
-                except Exception as e:
-                    st.error(f"An error occurred: {e}", icon="🚨")
-                    time.sleep(2)
 
             st.session_state.mic_used = False
             st.session_state.human_enq.append(user_prompt)
