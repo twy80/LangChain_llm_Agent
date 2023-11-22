@@ -12,9 +12,6 @@
 
   - Recording of the user's voice is stopped when there is no input for 3 seconds.
   
-  - TTS (Text-to-Speech) is supported by using gTTS, and there are three modes
-    available: 'Enabled', 'Disabled', and 'Auto'
-
   - RAG (Retrieval Augmented Generation) for an external document is implemented
     by using langchain functions.
 
