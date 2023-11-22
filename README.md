@@ -10,7 +10,7 @@
   - Voice recognition and Text-To-Speech (TTS) are implemented by using
     functions from OpenAI
 
-  - Recording of the user's voice is stopped when there is no input for 3 seconds.
+  - Recording of the user's voice is stopped when there is no input for 3 seconds
   
   - RAG (Retrieval Augmented Generation) for an external document is implemented
     by using langchain functions.
