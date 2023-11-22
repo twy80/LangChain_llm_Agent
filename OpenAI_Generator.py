@@ -65,9 +65,6 @@ def openai_create_image(description, size="1024x1024"):
     The resulting image is plotted.
     """
 
-    if description.strip() == "":
-        return None
-
     try:
         with st.spinner("AI is generating..."):
             response = st.session_state.client.images.generate(
@@ -114,19 +111,22 @@ def get_vector_store(uploaded_file):
         # Load the document using the selected loader.
         document = loader.load()
 
-        with st.spinner("Vector store in preparation..."):
-            # Split the loaded text into smaller chunks for processing.
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                # separators=["\n", "\n\n", "(?<=\. )", "", " "],
-            )
+        try:
+            with st.spinner("Vector store in preparation..."):
+                # Split the loaded text into smaller chunks for processing.
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    # separators=["\n", "\n\n", "(?<=\. )", "", " "],
+                )
 
-            doc = text_splitter.split_documents(document)
+                doc = text_splitter.split_documents(document)
 
-            # Create a FAISS vector database.
-            embeddings = OpenAIEmbeddings()
-            vector_store = FAISS.from_documents(doc, embeddings)
+                # Create a FAISS vector database.
+                embeddings = OpenAIEmbeddings()
+                vector_store = FAISS.from_documents(doc, embeddings)
+        except Exception:
+            vector_store = None
 
         return vector_store
 
