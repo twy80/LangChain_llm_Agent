@@ -340,8 +340,8 @@ def create_text(model):
     st.write("")
     st.write("##### Message to AI")
     ai_role = st.selectbox(
-        "AI's role",
-        roles,
+        label="AI's role",
+        options=roles,
         index=roles.index(st.session_state.prev_ai_role),
         label_visibility="collapsed",
     )
