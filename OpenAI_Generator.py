@@ -7,6 +7,7 @@ import openai
 from audio_recorder_streamlit import audio_recorder
 import os, io, base64
 from langchain.document_loaders import PyPDFLoader
+from langchain.document_loaders import Docx2txtLoader
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
@@ -102,8 +103,8 @@ def get_vector_store(uploaded_file):
             loader = PyPDFLoader(uploaded_document)
         elif uploaded_file.name.lower().endswith(".txt"):
             loader = TextLoader(uploaded_document)
-        # elif uploaded_file.name.lower().endswith(".md"):
-        #     loader = UnstructuredMarkdownLoader(uploaded_document)
+        elif uploaded_file.name.lower().endswith(".docx"):
+            loader = Docx2txtLoader(uploaded_document)
         else:
             st.error("Please load a file in pdf or txt", icon="🚨")
             return None
@@ -123,7 +124,9 @@ def get_vector_store(uploaded_file):
                 doc = text_splitter.split_documents(document)
 
                 # Create a FAISS vector database.
-                embeddings = OpenAIEmbeddings()
+                embeddings = OpenAIEmbeddings(
+                    openai_api_key=st.session_state.openai_api_key
+                )
                 vector_store = FAISS.from_documents(doc, embeddings)
         except Exception as e:
             vector_store = None
@@ -138,7 +141,11 @@ def get_conversation_chain(vector_store, temperature=0, model="gpt-3.5-turbo"):
     temperature and a llm model as input, and returns a conversational chain.
     """
 
-    openai_llm = ChatOpenAI(temperature=temperature, model_name=model)
+    openai_llm = ChatOpenAI(
+        openai_api_key=st.session_state.openai_api_key,
+        temperature=temperature,
+        model_name=model
+    )
 
     memory = ConversationBufferMemory(
         memory_key="chat_history", return_messages=True,
@@ -357,7 +364,7 @@ def create_text(model):
         right.write("Temperature is set to 0.")
         uploaded_file = st.file_uploader(
             label="Upload an article",
-            type=["txt", "pdf"],
+            type=["txt", "pdf", "docx"],
             accept_multiple_files=False,
             on_change=reset_conversation,
             label_visibility="collapsed",
@@ -501,6 +508,9 @@ def openai_create():
     if "client" not in st.session_state:
         st.session_state.client = None
 
+    if "openai_api_key" not in st.session_state:
+        st.session_state.openai_api_key = None
+
     st.write("## 🎭 ChatGPT & DALL·E")
 
     with st.sidebar:
@@ -516,7 +526,7 @@ def openai_create():
 
         if choice_api == "Your key":
             st.write("**Your API Key**")
-            api_key = st.text_input(
+            st.session_state.openai_api_key = st.text_input(
                 label="$\\hspace{0.25em}\\texttt{Your OpenAI API Key}$",
                 type="password",
                 label_visibility="collapsed",
@@ -524,15 +534,17 @@ def openai_create():
             # st.write("You can obtain an API key from https://beta.openai.com")
             authen = True
         else:
-            api_key = st.secrets["OPENAI_API_KEY"]
-            stored_pin = st.secrets["USER_PIN"]
+            st.session_state.openai_api_key = st.secrets["openai_api_key"]
+            stored_pin = st.secrets["user_PIN"]
             st.write("**Password**")
             user_pin = st.text_input(
                 label="Enter password", type="password", label_visibility="collapsed"
             )
             authen = user_pin == stored_pin
 
-        st.session_state.client = openai.OpenAI(api_key=api_key)
+        st.session_state.client = openai.OpenAI(
+            api_key=st.session_state.openai_api_key
+        )
 
         st.write("")
         st.write("**What to Generate**")
