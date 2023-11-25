@@ -3,5 +3,6 @@ streamlit
 audio-recorder-streamlit
 langchain
 pypdf
+docx2txt
 faiss-cpu
 tiktoken
