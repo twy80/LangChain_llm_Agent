@@ -149,13 +149,18 @@ def get_conversation_chain(vector_store, temperature=0, model="gpt-3.5-turbo"):
     )
 
     memory = ConversationBufferMemory(
-        memory_key="chat_history", return_messages=True,
+        memory_key="chat_history",
+        return_messages=True,
+        output_key="answer"
     )
 
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=openai_llm,
+        chain_type="stuff",
         retriever=vector_store.as_retriever(),
+        # retriever=vector_store.as_retriever(search_type="mmr"),
         memory=memory,
+        return_source_documents=True
     )
 
     return conversation_chain
@@ -164,7 +169,7 @@ def get_conversation_chain(vector_store, temperature=0, model="gpt-3.5-turbo"):
 def openai_doc_answer(user_prompt, conversation):
     """
     This function takes a user prompt and a conversation object as input,
-    and generates text on the uploaded document.
+    and returns a response on the uploaded document along with sources.
     """
 
     if conversation is not None:
@@ -174,14 +179,15 @@ def openai_doc_answer(user_prompt, conversation):
                 # {"question": ..., "chat_history": [...], "answer": ...}.
                 response = conversation({"question": user_prompt})
                 generated_text = response["answer"]
+                source_documents = response["source_documents"]
 
         except Exception as e:
-            generated_text = None
+            generated_text, source_documents = None, None
             st.error(f"An error occurred: {e}", icon="🚨")
     else:
-        generated_text = None
+        generated_text, source_documents = None, None
 
-    return generated_text
+    return generated_text, source_documents
 
 
 def read_audio(audio_bytes):
@@ -257,6 +263,7 @@ def reset_conversation():
     st.session_state.play_audio = False
     st.session_state.vector_store = None
     st.session_state.conversation = None
+    st.session_state.sources = None
 
 
 def switch_between_apps():
@@ -321,6 +328,9 @@ def create_text(model):
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
+
+    if "sources" not in st.session_state:
+        st.session_state.sources = None
 
     with st.sidebar:
         st.write("")
@@ -396,6 +406,15 @@ def create_text(model):
         with st.chat_message("ai"):
             st.write(ai)
 
+    if ai_role == doc_analyzer and st.session_state.sources is not None:
+        with st.expander("Sources"):
+            for index in range(len(st.session_state.sources)):
+                st.markdown(
+                    # st.session_state.sources[index].metadata["source"],
+                    "Uploaded document",
+                    help=st.session_state.sources[index].page_content
+            )
+
     # Play TTS
     if st.session_state.play_audio:
         autoplay_audio(text_audio_file)
@@ -436,7 +455,7 @@ def create_text(model):
             st.write(user_prompt)
 
         if ai_role == doc_analyzer:  # RAG (when there is a document uploaded)
-            generated_text = openai_doc_answer(
+            generated_text, st.session_state.sources = openai_doc_answer(
                 user_prompt, st.session_state.conversation
             )
         else:  # General chatting
