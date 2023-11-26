@@ -66,19 +66,20 @@ def openai_create_image(description, size="1024x1024"):
     The resulting image is plotted.
     """
 
-    try:
-        with st.spinner("AI is generating..."):
-            response = st.session_state.client.images.generate(
-                model="dall-e-3",
-                prompt=description,
-                size=size,
-                quality="standard",
-                n=1,
-            )
-        image_url = response.data[0].url
-        st.image(image=image_url, use_column_width=True)
-    except Exception as e:
-        st.error(f"An error occurred: {e}", icon="🚨")
+    if description:
+        try:
+            with st.spinner("AI is generating..."):
+                response = st.session_state.client.images.generate(
+                    model="dall-e-3",
+                    prompt=description,
+                    size=size,
+                    quality="standard",
+                    n=1,
+                )
+            image_url = response.data[0].url
+            st.image(image=image_url, use_column_width=True)
+        except Exception as e:
+            st.error(f"An error occurred: {e}", icon="🚨")
 
     return None
 
