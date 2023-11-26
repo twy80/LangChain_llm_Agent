@@ -551,7 +551,7 @@ def create_text_image():
                 type="password",
                 label_visibility="collapsed",
             )
-            authen = False if st.session_state.openai_api_key is None else True
+            authen = False if st.session_state.openai_api_key == "" else True
         else:
             st.session_state.openai_api_key = st.secrets["openai_api_key"]
             stored_pin = st.secrets["user_PIN"]
