@@ -13,11 +13,23 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from langchain.callbacks.base import BaseCallbackHandler
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 
 
-def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
+class StreamHandler(BaseCallbackHandler):
+    def __init__(self, container, initial_text=""):
+        self.container = container
+        self.text = initial_text
+
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        self.text += token
+        self.container.markdown(self.text)
+
+
+def chat_complete(user_prompt, model="gpt-3.5-turbo", temperature=0.7):
     """
     This function generates text based on user input.
 
@@ -32,25 +44,26 @@ def openai_create_text(user_prompt, temperature=0.7, model="gpt-3.5-turbo"):
     All the conversations are stored in st.session_state variables.
     """
 
-    # Add the user input to the prompt
-    st.session_state.prompt.append({"role": "user", "content": user_prompt})
+    openai_llm = ChatOpenAI(
+        openai_api_key=st.session_state.openai_api_key,
+        temperature=temperature,
+        model_name=model,
+        streaming=True,
+        callbacks=[StreamHandler(st.empty())]
+    )
+
+    # Add the user input to the messages
+    st.session_state.messages.append(HumanMessage(content=user_prompt))
     try:
-        with st.spinner("AI is thinking..."):
-            response = st.session_state.client.chat.completions.create(
-                model=model,
-                messages=st.session_state.prompt,
-                temperature=temperature,
-            )
-        generated_text = response.choices[0].message.content
+        response = openai_llm(st.session_state.messages)
+        generated_text = response.content
     except Exception as e:
         generated_text = None
         st.error(f"An error occurred: {e}", icon="🚨")
 
-    if generated_text:
-        # Add the generated output to the prompt
-        st.session_state.prompt.append(
-            {"role": "assistant", "content": generated_text}
-        )
+    if generated_text is not None:
+        # Add the generated output to the messages
+        st.session_state.messages.append(response)
 
     return generated_text
 
@@ -136,50 +149,41 @@ def get_vector_store(uploaded_file):
         return vector_store
 
 
-def get_conversation_chain(vector_store, temperature=0, model="gpt-3.5-turbo"):
+def document_qna(user_prompt, vector_store, model="gpt-3.5-turbo"):
     """
-    This function takes a vector store, a numerical value between 0 and 1 for
-    temperature and a llm model as input, and returns a conversational chain.
-    """
-
-    openai_llm = ChatOpenAI(
-        openai_api_key=st.session_state.openai_api_key,
-        temperature=temperature,
-        model_name=model
-    )
-
-    memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
-        output_key="answer"
-    )
-
-    conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=openai_llm,
-        chain_type="stuff",
-        retriever=vector_store.as_retriever(),
-        # retriever=vector_store.as_retriever(search_type="mmr"),
-        memory=memory,
-        return_source_documents=True
-    )
-
-    return conversation_chain
-
-
-def openai_doc_answer(user_prompt, conversation):
-    """
-    This function takes a user prompt and a conversation object as input,
+    This function takes a user prompt, a vector store and a GPT model,
     and returns a response on the uploaded document along with sources.
     """
 
-    if conversation is not None:
+    if vector_store is not None:
+        openai_llm = ChatOpenAI(
+            openai_api_key=st.session_state.openai_api_key,
+            temperature=0,
+            model_name=model,
+            streaming=True,
+            callbacks=[StreamHandler(st.empty())]
+        )
+        memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True,
+            output_key="answer"
+        )
+        conversation_chain = ConversationalRetrievalChain.from_llm(
+            llm=openai_llm,
+            chain_type="stuff",
+            retriever=vector_store.as_retriever(),
+            # retriever=vector_store.as_retriever(search_type="mmr"),
+            memory=memory,
+            return_source_documents=True
+        )
+
+        # Add the user input to the messages
         try:
-            with st.spinner("AI is thinking..."):
-                # response to the query is given in the form
-                # {"question": ..., "chat_history": [...], "answer": ...}.
-                response = conversation({"question": user_prompt})
-                generated_text = response["answer"]
-                source_documents = response["source_documents"]
+            # response to the query is given in the form
+            # {"question": ..., "chat_history": [...], "answer": ...}.
+            response = conversation_chain({"question": user_prompt})
+            generated_text = response["answer"]
+            source_documents = response["source_documents"]
 
         except Exception as e:
             generated_text, source_documents = None, None
@@ -253,8 +257,8 @@ def autoplay_audio(file_path):
 
 
 def reset_conversation():
-    st.session_state.prompt = [
-        {"role": "system", "content": st.session_state.prev_ai_role}
+    st.session_state.messages = [
+        SystemMessage(content=st.session_state.prev_ai_role)
     ]
     st.session_state.prompt_exists = False
     st.session_state.human_enq = []
@@ -296,9 +300,9 @@ def create_text(model):
     if "prev_ai_role" not in st.session_state:
         st.session_state.prev_ai_role = general_role
 
-    if "prompt" not in st.session_state:
-        st.session_state.prompt = [
-            {"role": "system", "content": st.session_state.prev_ai_role}
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            SystemMessage(content=st.session_state.prev_ai_role)
         ]
 
     if "prompt_exists" not in st.session_state:
@@ -386,13 +390,6 @@ def create_text(model):
 
             if st.session_state.vector_store is not None:
                 st.write(f"Vector store for :blue[[{uploaded_file.name}]] is ready!")
-                # st.session_state.vector_store_ready = True
-                # Create the conversation chain.
-                st.session_state.conversation = get_conversation_chain(
-                    st.session_state.vector_store,
-                    temperature=0.0,
-                    model=model,
-                )
 
     st.write("")
     left, right = st.columns([4, 7])
@@ -454,18 +451,21 @@ def create_text(model):
         with st.chat_message("human"):
             st.write(user_prompt)
 
-        if ai_role == doc_analyzer:  # RAG (when there is a document uploaded)
-            generated_text, st.session_state.sources = openai_doc_answer(
-                user_prompt, st.session_state.conversation
-            )
-        else:  # General chatting
-            generated_text = openai_create_text(
-                user_prompt, temperature=st.session_state.temp_value, model=model
-            )
+        with st.chat_message("ai"):
+            if ai_role == doc_analyzer:  # RAG (when there is a document uploaded)
+                generated_text, st.session_state.sources = document_qna(
+                    user_prompt,
+                    vector_store=st.session_state.vector_store,
+                    model=model
+                )
+            else:  # General chatting
+                generated_text = chat_complete(
+                    user_prompt,
+                    temperature=st.session_state.temp_value,
+                    model=model
+                )
 
         if generated_text is not None:
-            # with st.chat_message("ai"):
-            #     st.write(generated_text)
             # TTS under two conditions
             cond1 = st.session_state.tts == "Enabled"
             cond2 = st.session_state.tts == "Auto" and st.session_state.mic_used
@@ -519,7 +519,7 @@ def create_image():
     )
 
 
-def openai_create():
+def create_text_image():
     """
     This main function generates text or image by calling
     openai_create_text() or openai_create_image(), respectively.
@@ -597,4 +597,4 @@ def openai_create():
 
 
 if __name__ == "__main__":
-    openai_create()
+    create_text_image()
