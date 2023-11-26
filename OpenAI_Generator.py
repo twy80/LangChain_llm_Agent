@@ -576,7 +576,7 @@ def create_text_image():
         )
 
     if not authen:
-        st.error("**Incorrect password. Please try again.**", icon="🚨")
+        st.error("**Invalid value. Please try again.**", icon="🚨")
     else:
         if option == "Text (GPT 3.5)":
             create_text("gpt-3.5-turbo")
