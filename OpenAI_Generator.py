@@ -178,7 +178,6 @@ def document_qna(user_prompt, vector_store, model="gpt-3.5-turbo"):
             return_source_documents=True
         )
 
-        # Add the user input to the messages
         try:
             # response to the query is given in the form
             # {"question": ..., "chat_history": [...], "answer": ...}.
