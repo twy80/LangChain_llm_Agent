@@ -82,7 +82,7 @@ def openai_create_image(description, size="1024x1024"):
     if description:
         try:
             with st.spinner("AI is generating..."):
-                response = st.session_state.client.images.generate(
+                response = st.session_state.openai.images.generate(
                     model="dall-e-3",
                     prompt=description,
                     size=size,
@@ -202,7 +202,7 @@ def read_audio(audio_bytes):
         audio_data = io.BytesIO(audio_bytes)
         audio_data.name = "recorded_audio.wav"  # dummy name
 
-        transcript = st.session_state.client.audio.transcriptions.create(
+        transcript = st.session_state.openai.audio.transcriptions.create(
             model="whisper-1", file=audio_data
         )
         text = transcript.text
@@ -220,7 +220,7 @@ def perform_tts(text):
 
     try:
         with st.spinner("TTS in progress..."):
-            audio_response = st.session_state.client.audio.speech.create(
+            audio_response = st.session_state.openai.audio.speech.create(
                 model="tts-1",
                 voice="shimmer",
                 input=text,
@@ -529,7 +529,7 @@ def create_text_image():
         st.session_state.client = None
 
     if "openai_api_key" not in st.session_state:
-        st.session_state.openai_api_key = None
+        st.session_state.openai_api_key = ""
 
     st.write("## 🎭 ChatGPT & DALL·E")
 
@@ -561,7 +561,7 @@ def create_text_image():
             )
             authen = user_pin == stored_pin
 
-        st.session_state.client = openai.OpenAI(
+        st.session_state.openai = openai.OpenAI(
             api_key=st.session_state.openai_api_key
         )
 
@@ -575,15 +575,19 @@ def create_text_image():
             on_change=switch_between_apps,
         )
 
-    if not authen:
-        st.error("**Invalid value. Please try again.**", icon="🚨")
-    else:
+    if authen:
         if option == "Text (GPT 3.5)":
             create_text("gpt-3.5-turbo")
         elif option == "Text (GPT 4)":
             create_text("gpt-4")
         else:
             create_image()
+    else:
+        st.write("")
+        if choice_api == "Your key":
+            st.info("**Enter your OpenAI API key.**")
+        else:
+            st.info("**Enter the correct password**")
 
     with st.sidebar:
         st.write("---")
