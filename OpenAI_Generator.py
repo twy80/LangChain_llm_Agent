@@ -525,8 +525,8 @@ def create_text_image():
     openai_create_text() or openai_create_image(), respectively.
     """
 
-    if "client" not in st.session_state:
-        st.session_state.client = None
+    if "openai" not in st.session_state:
+        st.session_state.openai = None
 
     if "openai_api_key" not in st.session_state:
         st.session_state.openai_api_key = ""
