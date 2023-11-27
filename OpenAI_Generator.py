@@ -527,7 +527,7 @@ def create_text_image():
     if "openai_api_key" not in st.session_state:
         st.session_state.openai_api_key = ""
 
-    st.write("## 🎭 ChatGPT & DALL·E")
+    st.write("## 🎭 ChatGPT (RAG)$\,$ &$\,$ DALL·E")
 
     with st.sidebar:
         st.write("")
