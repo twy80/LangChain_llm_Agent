@@ -266,7 +266,6 @@ def reset_conversation():
     st.session_state.initial_temp = st.session_state.temp_value
     st.session_state.play_audio = False
     st.session_state.vector_store = None
-    st.session_state.conversation = None
     st.session_state.sources = None
 
 
@@ -329,9 +328,6 @@ def create_text(model):
     # session_state variables for RAG
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
-
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = None
 
     if "sources" not in st.session_state:
         st.session_state.sources = None
@@ -541,7 +537,6 @@ def create_text_image():
             options=("Your key", "My key"),
             label_visibility="collapsed",
             horizontal=True,
-            on_change=reset_conversation,
         )
 
         if choice_api == "Your key":
@@ -585,9 +580,9 @@ def create_text_image():
     else:
         st.write("")
         if choice_api == "Your key":
-            st.info("**Enter your OpenAI API key.**")
+            st.info("**Enter your OpenAI API key in the sidebar**")
         else:
-            st.info("**Enter the correct password**")
+            st.info("**Enter the correct password in the sidebar**")
 
     with st.sidebar:
         st.write("---")
