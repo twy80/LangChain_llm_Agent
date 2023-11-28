@@ -273,6 +273,8 @@ def reset_conversation():
 
 
 def switch_between_apps():
+    if "temp_value" not in st.session_state:
+        st.session_state.temp_value = 0.7
     st.session_state.initial_temp = st.session_state.temp_value
 
 
