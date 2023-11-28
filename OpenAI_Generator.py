@@ -150,7 +150,7 @@ def get_vector_store(uploaded_file):
         return vector_store
 
 
-def document_qna(user_prompt, vector_store, model="gpt-3.5-turbo"):
+def document_qna(query, vector_store, model="gpt-3.5-turbo"):
     """
     This function takes a user prompt, a vector store and a GPT model,
     and returns a response on the uploaded document along with sources.
@@ -183,7 +183,7 @@ def document_qna(user_prompt, vector_store, model="gpt-3.5-turbo"):
         try:
             # response to the query is given in the form
             # {"question": ..., "chat_history": [...], "answer": ...}.
-            response = conversation_chain({"question": user_prompt})
+            response = conversation_chain({"question": query})
             generated_text = response["answer"]
             source_documents = response["source_documents"]
 
@@ -283,7 +283,7 @@ def enable_user_input():
 def create_text(model):
     """
     This function geneates text based on user input
-    by calling openai_create_text().
+    by calling chat_complete().
 
     model is set to "gpt-3.5-turbo" or "gpt-4".
     """
@@ -431,13 +431,8 @@ def create_text(model):
 
     # Use your microphone
     audio_bytes = audio_recorder(
-        pause_threshold=3.0,
-        # sample_rate=sr,
-        text="Speak",
-        recording_color="#e87070",
-        neutral_color="#6aa36f",
-        # icon_name="user",
-        icon_size="2x",
+        pause_threshold=3.0, text="Speak", icon_size="2x",
+        recording_color="#e87070", neutral_color="#6aa36f"        
     )
 
     if audio_bytes != st.session_state.prev_audio_bytes:
@@ -493,6 +488,10 @@ def create_image():
     by calling openai_create_image().
     """
 
+    def show_text_image(description, image_size):
+        st.write(f":blue[{description}]")
+        openai_create_image(description, image_size)
+
     # Set the image size
     with st.sidebar:
         st.write("")
@@ -505,20 +504,26 @@ def create_image():
             label_visibility="collapsed",
         )
 
-    # Get the image description from the user
     st.write("")
-    st.write(f"##### Description for your image")
-    description = st.text_area(
-        label="$\\hspace{0.1em}\\texttt{Description for your image}\,$ (in $\,$English)",
-        # value="",
-        label_visibility="collapsed",
-    )
+    st.write("##### Description for your image")
 
-    left, _ = st.columns(2)  # To show the results below the button
-    left.button(
-        label="Generate",
-        on_click=openai_create_image(description, image_size)
+    # Get an image description using the microphone
+    audio_bytes = audio_recorder(
+        pause_threshold=3.0, text="Speak", icon_size="2x",
+        recording_color="#e87070", neutral_color="#6aa36f"        
     )
+    if audio_bytes != st.session_state.prev_audio_bytes:
+        audio_input = read_audio(audio_bytes)
+        if audio_input is not None:
+            show_text_image(audio_input, image_size)
+        st.session_state.prev_audio_bytes = audio_bytes
+
+    # Get an image description using the keyboard
+    text_input = st.chat_input(
+        placeholder="Enter a description for your image",
+    )
+    if text_input:
+        show_text_image(text_input, image_size)
 
 
 def create_text_image():
