@@ -321,9 +321,6 @@ def create_text(model):
     if "initial_temp" not in st.session_state:
         st.session_state.initial_temp = 0.7
 
-    if "prev_audio_bytes" not in st.session_state:
-        st.session_state.prev_audio_bytes = None
-
     if "mic_used" not in st.session_state:
         st.session_state.mic_used = False
 
@@ -539,6 +536,9 @@ def create_text_image():
 
     if "openai_api_key" not in st.session_state:
         st.session_state.openai_api_key = ""
+
+    if "prev_audio_bytes" not in st.session_state:
+        st.session_state.prev_audio_bytes = None
 
     st.write("## 🎭 ChatGPT (RAG)$\,$ &$\,$ DALL·E")
 
