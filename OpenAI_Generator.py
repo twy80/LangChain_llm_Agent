@@ -157,31 +157,32 @@ def document_qna(user_prompt, vector_store, model="gpt-3.5-turbo"):
     """
 
     if vector_store is not None:
-        openai_llm = ChatOpenAI(
-            openai_api_key=st.session_state.openai_api_key,
-            temperature=0,
-            model_name=model,
-            streaming=True,
-            callbacks=[StreamHandler(st.empty())]
-        )
-        memory = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True,
-            output_key="answer"
-        )
-        conversation_chain = ConversationalRetrievalChain.from_llm(
-            llm=openai_llm,
-            chain_type="stuff",
-            retriever=vector_store.as_retriever(),
-            # retriever=vector_store.as_retriever(search_type="mmr"),
-            memory=memory,
-            return_source_documents=True
-        )
+        if st.session_state.chain is None:
+            openai_llm = ChatOpenAI(
+                openai_api_key=st.session_state.openai_api_key,
+                temperature=0,
+                model_name=model,
+                streaming=True,
+                callbacks=[StreamHandler(st.empty())]
+            )
+            memory = ConversationBufferMemory(
+                memory_key="chat_history",
+                return_messages=True,
+                output_key="answer"
+            )
+            st.session_state.chain = ConversationalRetrievalChain.from_llm(
+                llm=openai_llm,
+                chain_type="stuff",
+                retriever=vector_store.as_retriever(),
+                # retriever=vector_store.as_retriever(search_type="mmr"),
+                memory=memory,
+                return_source_documents=True
+            )
 
         try:
             # response to the query is given in the form
             # {"question": ..., "chat_history": [...], "answer": ...}.
-            response = conversation_chain({"question": user_prompt})
+            response = st.session_state.chain({"question": user_prompt})
             generated_text = response["answer"]
             source_documents = response["source_documents"]
 
@@ -267,6 +268,7 @@ def reset_conversation():
     st.session_state.play_audio = False
     st.session_state.vector_store = None
     st.session_state.sources = None
+    st.session_state.chain = None
 
 
 def switch_between_apps():
@@ -331,6 +333,9 @@ def create_text(model):
 
     if "sources" not in st.session_state:
         st.session_state.sources = None
+
+    if "chain" not in st.session_state:
+        st.session_state.chain = None
 
     with st.sidebar:
         st.write("")
