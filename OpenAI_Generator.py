@@ -344,7 +344,7 @@ def create_text(model):
             label="$\\hspace{0.08em}\\texttt{TTS}$",
             options=("Enabled", "Disabled", "Auto"),
             # horizontal=True,
-            index=2,
+            index=1,
             label_visibility="collapsed",
         )
         st.write("")
