@@ -17,6 +17,7 @@ from langchain.schema import SystemMessage, HumanMessage, AIMessage
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
+from langchain.callbacks import StreamlitCallbackHandler
 
 
 # This is for streaming on Streamlit
@@ -169,7 +170,7 @@ def document_qna(query, vector_store, model="gpt-3.5-turbo"):
             temperature=0,
             model_name=model,
             streaming=True,
-            callbacks=[StreamHandler(st.empty())]
+            callbacks=[StreamlitCallbackHandler(st.container())]
         )
         conversation_chain = ConversationalRetrievalChain.from_llm(
             llm=openai_llm,
