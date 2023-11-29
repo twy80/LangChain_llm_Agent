@@ -488,7 +488,7 @@ def create_image():
     """
 
     def show_text_image(description, image_size):
-        st.write(f":blue[{description}]")
+        st.info(description)
         openai_create_image(description, image_size)
 
     # Set the image size
