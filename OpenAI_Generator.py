@@ -412,7 +412,7 @@ def create_text(model):
                     # st.session_state.sources[index].metadata["source"],
                     "Uploaded document",
                     help=st.session_state.sources[index].page_content
-            )
+                )
 
     # Play TTS
     if st.session_state.play_audio:
