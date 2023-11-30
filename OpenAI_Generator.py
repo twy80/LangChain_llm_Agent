@@ -170,7 +170,7 @@ def document_qna(query, vector_store, model="gpt-3.5-turbo"):
             temperature=0,
             model_name=model,
             streaming=True,
-            callbacks=[StreamlitCallbackHandler(st.container())]
+            callbacks=[StreamlitCallbackHandler(st.empty())]
         )
         conversation_chain = ConversationalRetrievalChain.from_llm(
             llm=openai_llm,
