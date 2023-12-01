@@ -20,6 +20,63 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.callbacks import StreamlitCallbackHandler
 
 
+def initialize_session_state_variables():
+    """
+    This function initializes all the session state variables.
+    """
+
+    # variables for using OpenAI
+    if "openai_api_key" not in st.session_state:
+        st.session_state.openai_api_key = None
+
+    if "openai" not in st.session_state:
+        st.session_state.openai = None
+
+    # variables for chatbot
+    if "prev_ai_role" not in st.session_state:
+        st.session_state.prev_ai_role = "You are a helpful assistant."
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            SystemMessage(content=st.session_state.prev_ai_role)
+        ]
+
+    if "prompt_exists" not in st.session_state:
+        st.session_state.prompt_exists = False
+
+    if "human_enq" not in st.session_state:
+        st.session_state.human_enq = []
+
+    if "ai_resp" not in st.session_state:
+        st.session_state.ai_resp = []
+
+    if "initial_temp" not in st.session_state:
+        st.session_state.initial_temp = 0.7
+
+    if "temp_value" not in st.session_state:
+        st.session_state.temp_value = st.session_state.initial_temp
+
+    # variables for audio
+    if "prev_audio_bytes" not in st.session_state:
+        st.session_state.prev_audio_bytes = None
+
+    if "mic_used" not in st.session_state:
+        st.session_state.mic_used = False
+
+    if "play_audio" not in st.session_state:
+        st.session_state.play_audio = False
+
+    # variables for RAG
+    if "vector_store" not in st.session_state:
+        st.session_state.vector_store = None
+
+    if "sources" not in st.session_state:
+        st.session_state.sources = None
+
+    if "memory" not in st.session_state:
+        st.session_state.memory = None
+
+
 # This is for streaming on Streamlit
 class StreamHandler(BaseCallbackHandler):
     def __init__(self, container, initial_text=""):
@@ -274,8 +331,6 @@ def reset_conversation():
 
 
 def switch_between_apps():
-    if "temp_value" not in st.session_state:
-        st.session_state.temp_value = 0.7
     st.session_state.initial_temp = st.session_state.temp_value
 
 
@@ -301,42 +356,6 @@ def create_text(model):
     coding_adviser = "You are an expert in coding who provides advice on good coding styles."
     doc_analyzer = "You are an assistant analyzing the document uploaded."
     roles = (general_role, english_teacher, translator, coding_adviser, doc_analyzer)
-
-    if "prev_ai_role" not in st.session_state:
-        st.session_state.prev_ai_role = general_role
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            SystemMessage(content=st.session_state.prev_ai_role)
-        ]
-
-    if "prompt_exists" not in st.session_state:
-        st.session_state.prompt_exists = False
-
-    if "human_enq" not in st.session_state:
-        st.session_state.human_enq = []
-
-    if "ai_resp" not in st.session_state:
-        st.session_state.ai_resp = []
-
-    if "initial_temp" not in st.session_state:
-        st.session_state.initial_temp = 0.7
-
-    if "mic_used" not in st.session_state:
-        st.session_state.mic_used = False
-
-    if "play_audio" not in st.session_state:
-        st.session_state.play_audio = False
-
-    # session_state variables for RAG
-    if "vector_store" not in st.session_state:
-        st.session_state.vector_store = None
-
-    if "sources" not in st.session_state:
-        st.session_state.sources = None
-
-    if "memory" not in st.session_state:
-        st.session_state.memory = None
 
     with st.sidebar:
         st.write("")
@@ -407,10 +426,12 @@ def create_text(model):
 
     if ai_role == doc_analyzer and st.session_state.sources is not None:
         with st.expander("Sources"):
-            for index in range(len(st.session_state.sources)):
-                st.markdown(
-                    # st.session_state.sources[index].metadata["source"],
-                    "Uploaded document",
+            c1, c2, _ = st.columns(3)
+            c1.write("Uploaded document")
+            columns = c2.columns(len(st.session_state.sources))
+            for index, column in enumerate(columns):
+                column.markdown(
+                    f"[{index + 1}]",
                     help=st.session_state.sources[index].page_content
                 )
 
@@ -532,16 +553,10 @@ def create_text_image():
     openai_create_text() or openai_create_image(), respectively.
     """
 
-    if "openai" not in st.session_state:
-        st.session_state.openai = None
-
-    if "openai_api_key" not in st.session_state:
-        st.session_state.openai_api_key = ""
-
-    if "prev_audio_bytes" not in st.session_state:
-        st.session_state.prev_audio_bytes = None
-
     st.write("## 🎭 ChatGPT (RAG)$\,$ &$\,$ DALL·E")
+
+    # Initialize all the session state variables
+    initialize_session_state_variables()
 
     with st.sidebar:
         st.write("")
