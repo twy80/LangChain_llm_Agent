@@ -609,7 +609,13 @@ def create_text_image():
     else:
         st.write("")
         if choice_api == "Your key":
-            st.info("**Enter your OpenAI API key in the sidebar**")
+            st.info(
+                """
+                **Enter your OpenAI API key in the sidebar**
+
+                [Get an OpenAI API key](https://platform.openai.com/api-keys)
+                """
+            )
         else:
             st.info("**Enter the correct password in the sidebar**")
 
