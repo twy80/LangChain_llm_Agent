@@ -1,6 +1,7 @@
 openai
 streamlit
 audio-recorder-streamlit
+pillow
 langchain
 pypdf
 docx2txt

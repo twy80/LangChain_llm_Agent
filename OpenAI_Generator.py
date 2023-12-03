@@ -5,7 +5,8 @@ ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 import streamlit as st
 import openai
 from audio_recorder_streamlit import audio_recorder
-import os, io, base64
+from PIL import Image, UnidentifiedImageError
+import os, io, base64, requests
 from langchain.document_loaders import PyPDFLoader
 from langchain.document_loaders import Docx2txtLoader
 from langchain.document_loaders import TextLoader
@@ -36,6 +37,9 @@ def initialize_session_state_variables():
     if "prev_ai_role" not in st.session_state:
         st.session_state.prev_ai_role = "You are a helpful assistant."
 
+    if "ai_role" not in st.session_state:
+        st.session_state.ai_role = st.session_state.prev_ai_role
+
     if "messages" not in st.session_state:
         st.session_state.messages = [
             SystemMessage(content=st.session_state.prev_ai_role)
@@ -50,13 +54,13 @@ def initialize_session_state_variables():
     if "ai_resp" not in st.session_state:
         st.session_state.ai_resp = []
 
-    if "initial_temp" not in st.session_state:
-        st.session_state.initial_temp = 0.7
+    if "pre_temp" not in st.session_state:
+        st.session_state.pre_temp = 0.7
 
     if "temp_value" not in st.session_state:
-        st.session_state.temp_value = st.session_state.initial_temp
+        st.session_state.temp_value = st.session_state.pre_temp
 
-    # variables for audio
+    # variables for audio and image
     if "prev_audio_bytes" not in st.session_state:
         st.session_state.prev_audio_bytes = None
 
@@ -65,6 +69,24 @@ def initialize_session_state_variables():
 
     if "play_audio" not in st.session_state:
         st.session_state.play_audio = False
+
+    if "image_url" not in st.session_state:
+        st.session_state.image_url = None
+
+    if "image_description" not in st.session_state:
+        st.session_state.image_description = None
+
+    if "uploaded_image" not in st.session_state:
+        st.session_state.uploaded_image = None
+
+    if "qna" not in st.session_state:
+        st.session_state.qna = {"question": "", "answer": ""}
+
+    if "pre_image_source" not in st.session_state:
+        st.session_state.pre_image_source = "From URL"
+
+    if "image_source" not in st.session_state:
+        st.session_state.image_source = st.session_state.pre_image_source
 
     # variables for RAG
     if "vector_store" not in st.session_state:
@@ -127,7 +149,7 @@ def chat_complete(user_prompt, model="gpt-3.5-turbo", temperature=0.7):
     return generated_text
 
 
-def openai_create_image(description, size="1024x1024"):
+def openai_create_image(description, model="dall-e-3", size="1024x1024"):
     """
     This function generates image based on user description.
 
@@ -135,25 +157,108 @@ def openai_create_image(description, size="1024x1024"):
         description (string): User description
         size (string): Pixel size of the generated image
 
-    The resulting image is plotted.
+    Return:
+        URL of the generated image
     """
 
-    if description:
-        try:
-            with st.spinner("AI is generating..."):
-                response = st.session_state.openai.images.generate(
-                    model="dall-e-3",
-                    prompt=description,
-                    size=size,
-                    quality="standard",
-                    n=1,
-                )
-            image_url = response.data[0].url
-            st.image(image=image_url, use_column_width=True)
-        except Exception as e:
-            st.error(f"An error occurred: {e}", icon="🚨")
+    try:
+        with st.spinner("AI is generating..."):
+            response = st.session_state.openai.images.generate(
+                model=model,
+                prompt=description,
+                size=size,
+                quality="standard",
+                n=1,
+            )
+        image_url = response.data[0].url
+    except Exception as e:
+        image_url = None
+        st.error(f"An error occurred: {e}", icon="🚨")
 
-    return None
+    return image_url
+
+
+def openai_query_image_url(image_url, query, model="gpt-4-vision-preview"):
+    try:
+        with st.spinner("AI is thinking..."):
+            response = st.session_state.openai.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": f"{query}"},
+                        {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"{image_url}",
+                        },
+                        },
+                    ],
+                    }
+                ],
+                max_tokens=300,
+            )
+        generated_text = response.choices[0].message.content
+    except Exception as e:
+        generated_text = None
+        st.error(f"An error occurred: {e}", icon="🚨")
+
+    return generated_text
+
+
+def openai_query_uploaded_image(image_b64, query, model="gpt-4-vision-preview"):
+    """
+    This function answers the user's query about the uploaded image.
+
+    Args:
+        image (base64 encoded string): base64 encoded image
+        query (string): the user's query.
+
+    Return:
+        text as an answer to the user's query.
+    """
+
+    headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {st.session_state.openai_api_key}"
+    }
+
+    payload = {
+    "model": f"{model}",
+    "messages": [
+        {
+        "role": "user",
+        "content": [
+            {
+            "type": "text",
+            "text": f"{query}"
+            },
+            {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{image_b64}"
+            }
+            }
+        ]
+        }
+    ],
+    "max_tokens": 300
+    }
+
+    try:
+        with st.spinner("AI is thinking..."):
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json=payload
+            )
+        generated_text = response.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        generated_text = None
+        st.error(f"An error occurred: {e}", icon="🚨")
+
+    return generated_text
 
 
 def get_vector_store(uploaded_file):
@@ -316,6 +421,46 @@ def autoplay_audio(file_path):
         st.markdown(md, unsafe_allow_html=True)
 
 
+def image_to_base64(image):
+    """
+    This function converts an image object from PIL to a base64
+    encoded image, and returns the resulting encoded image.
+    """
+
+    # Convert the image to RGB mode if necessary
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+
+    # Save the image to a BytesIO object
+    buffered_image = io.BytesIO()
+    image.save(buffered_image, format="JPEG")
+
+    # Convert BytesIO to bytes and encode to base64
+    img_str = base64.b64encode(buffered_image.getvalue())
+
+    # Convert bytes to string
+    base64_image = img_str.decode('utf-8')
+
+    return base64_image
+
+
+def shorten_image(image, max_pixels=1024):
+    """
+    This function takes an Image object as input, and shortens the image size
+    if the image is greater than max_pixels x max_pixels.
+    """
+
+    if max(image.width, image.height) > max_pixels:
+        if image.width > image.height:
+            new_width, new_height = 1024, image.height * 1024 // image.width
+        else:
+            new_width, new_height = image.width * 1024 // image.height, 1024
+
+        image = image.resize((new_width, new_height))
+
+    return image
+
+
 def reset_conversation():
     st.session_state.messages = [
         SystemMessage(content=st.session_state.prev_ai_role)
@@ -323,7 +468,7 @@ def reset_conversation():
     st.session_state.prompt_exists = False
     st.session_state.human_enq = []
     st.session_state.ai_resp = []
-    st.session_state.initial_temp = st.session_state.temp_value
+    st.session_state.pre_temp = st.session_state.temp_value
     st.session_state.play_audio = False
     st.session_state.vector_store = None
     st.session_state.sources = None
@@ -331,11 +476,18 @@ def reset_conversation():
 
 
 def switch_between_apps():
-    st.session_state.initial_temp = st.session_state.temp_value
+    st.session_state.pre_temp = st.session_state.temp_value
+    st.session_state.pre_image_source = st.session_state.image_source
+    st.session_state.prev_ai_role = st.session_state.ai_role
 
 
 def enable_user_input():
     st.session_state.prompt_exists = True
+
+
+def reset_qna_image():
+    st.session_state.uploaded_image = None
+    st.session_state.qna = {"question": "", "answer": ""}
 
 
 def create_text(model):
@@ -373,7 +525,7 @@ def create_text(model):
             label="$\\hspace{0.08em}\\texttt{Temperature}\,$ (higher $\Rightarrow$ more random)",
             min_value=0.0,
             max_value=1.0,
-            value=st.session_state.initial_temp,
+            value=st.session_state.pre_temp,
             step=0.1,
             format="%.1f",
             label_visibility="collapsed",
@@ -382,18 +534,18 @@ def create_text(model):
 
     st.write("")
     st.write("##### Message to AI")
-    ai_role = st.selectbox(
+    st.session_state.ai_role = st.selectbox(
         label="AI's role",
         options=roles,
         index=roles.index(st.session_state.prev_ai_role),
         label_visibility="collapsed",
     )
 
-    if ai_role != st.session_state.prev_ai_role:
-        st.session_state.prev_ai_role = ai_role
+    if st.session_state.ai_role != st.session_state.prev_ai_role:
+        st.session_state.prev_ai_role = st.session_state.ai_role
         reset_conversation()
 
-    if ai_role == doc_analyzer:
+    if st.session_state.ai_role == doc_analyzer:
         st.write("")
         left, right = st.columns([4, 7])
         left.write("##### Document to ask about")
@@ -424,7 +576,7 @@ def create_text(model):
         with st.chat_message("ai"):
             st.write(ai)
 
-    if ai_role == doc_analyzer and st.session_state.sources is not None:
+    if st.session_state.ai_role == doc_analyzer and st.session_state.sources is not None:
         with st.expander("Sources"):
             c1, c2, _ = st.columns(3)
             c1.write("Uploaded document")
@@ -447,7 +599,7 @@ def create_text(model):
     user_input = st.chat_input(
         placeholder="Enter your query",
         on_submit=enable_user_input,
-        disabled=not uploaded_file if ai_role == doc_analyzer else False,
+        disabled=not uploaded_file if st.session_state.ai_role == doc_analyzer else False,
     )
 
     # Use your microphone
@@ -470,7 +622,7 @@ def create_text(model):
             st.write(user_prompt)
 
         with st.chat_message("ai"):
-            if ai_role == doc_analyzer:  # RAG (when there is a document uploaded)
+            if st.session_state.ai_role == doc_analyzer:  # RAG (when there is a document uploaded)
                 generated_text, st.session_state.sources = document_qna(
                     user_prompt,
                     vector_store=st.session_state.vector_store,
@@ -503,15 +655,111 @@ def create_text(model):
             st.rerun()
 
 
-def create_image():
+def create_text_with_image(model):
+    """
+    This function responds to the user's query about the image
+    from a URL or uploaded image.
+    """
+
+    with st.sidebar:
+        sources = ("From URL", "Uploaded")
+        st.write("")
+        st.write("**Image selection**")
+        st.session_state.image_source = st.radio(
+            label="Image selection",
+            options=sources,
+            horizontal=True,
+            index=sources.index(st.session_state.pre_image_source),
+            label_visibility="collapsed",
+        )
+
+    st.write("")
+    st.write("##### Image to ask about")
+
+    if st.session_state.image_source == "From URL":
+        # Enter a URL
+        st.write("###### :blue[Enter the URL of your image]")
+
+        image_url = st.text_input(
+            label="URL of the image", label_visibility="collapsed",
+            on_change=reset_qna_image
+        )
+        if image_url:
+            st.session_state.uploaded_image = image_url
+    else:
+        # Upload an image file
+        st.write("###### :blue[Upload your image]")
+
+        image_file = st.file_uploader(
+            label="High resolution images will be resized.",
+            type=["jpg", "jpeg", "png", "bmp"],
+            accept_multiple_files=False,
+            label_visibility="collapsed",
+            on_change=reset_qna_image,
+        )
+        if image_file is not None:
+            # Process the uploaded image file
+            try:
+                image = Image.open(image_file)
+            except UnidentifiedImageError as e:
+                st.error(f"An error occurred: {e}", icon="🚨")
+                return None
+
+            st.session_state.uploaded_image = shorten_image(image, 1024)
+
+    # Capture the user's query and provide a response if the image is ready
+    if st.session_state.uploaded_image:
+        st.image(st.session_state.uploaded_image)
+
+        # Print query & answer
+        if st.session_state.qna["question"] and st.session_state.qna["answer"]:
+            with st.chat_message("human"):
+                st.write(st.session_state.qna["question"])
+            with st.chat_message("ai"):
+                st.write(st.session_state.qna["answer"])
+
+        # Use your microphone
+        audio_bytes = audio_recorder(
+            pause_threshold=3.0, text="Speak", icon_size="2x",
+            recording_color="#e87070", neutral_color="#6aa36f"        
+        )
+        if audio_bytes != st.session_state.prev_audio_bytes:
+            st.session_state.qna["question"] = read_audio(audio_bytes)
+            st.session_state.prev_audio_bytes = audio_bytes
+            if st.session_state.qna["question"] is not None:
+                st.session_state.prompt_exists = True
+
+        # Use your keyboard
+        query = st.chat_input(
+            placeholder="Enter your query",
+        )
+        if query:
+            st.session_state.qna["question"] = query
+            st.session_state.prompt_exists = True
+
+        if st.session_state.prompt_exists:
+            if st.session_state.image_source == "From URL":
+                st.session_state.qna["answer"] = openai_query_image_url(
+                    image_url=st.session_state.uploaded_image,
+                    query=st.session_state.qna["question"],
+                    model=model
+                )
+            else:
+                st.session_state.qna["answer"] = openai_query_uploaded_image(
+                    image_b64=image_to_base64(st.session_state.uploaded_image),
+                    query=st.session_state.qna["question"],
+                    model=model
+                )
+
+            st.session_state.prompt_exists = False
+            st.rerun()
+
+
+def create_image(model):
     """
     This function geneates image based on user description
     by calling openai_create_image().
     """
-
-    def show_text_image(description, image_size):
-        st.info(description)
-        openai_create_image(description, image_size)
 
     # Set the image size
     with st.sidebar:
@@ -527,24 +775,37 @@ def create_image():
 
     st.write("")
     st.write("##### Description for your image")
+    st.write("")
 
+    if st.session_state.image_url is not None:
+        st.info(st.session_state.image_description)
+        st.image(image=st.session_state.image_url, use_column_width=True)
+    
     # Get an image description using the microphone
     audio_bytes = audio_recorder(
         pause_threshold=3.0, text="Speak", icon_size="2x",
         recording_color="#e87070", neutral_color="#6aa36f"        
     )
     if audio_bytes != st.session_state.prev_audio_bytes:
-        audio_input = read_audio(audio_bytes)
-        if audio_input is not None:
-            show_text_image(audio_input, image_size)
+        st.session_state.image_description = read_audio(audio_bytes)
         st.session_state.prev_audio_bytes = audio_bytes
+        if st.session_state.image_description is not None:
+            st.session_state.prompt_exists = True
 
     # Get an image description using the keyboard
     text_input = st.chat_input(
         placeholder="Enter a description for your image",
     )
     if text_input:
-        show_text_image(text_input, image_size)
+        st.session_state.image_description = text_input
+        st.session_state.prompt_exists = True
+
+    if st.session_state.prompt_exists:
+        st.session_state.image_url = openai_create_image(
+            st.session_state.image_description, model, image_size
+        )
+        st.session_state.prompt_exists = False
+        st.rerun()
 
 
 def create_text_image():
@@ -593,7 +854,10 @@ def create_text_image():
         st.write("**What to Generate**")
         option = st.sidebar.radio(
             label="$\\hspace{0.25em}\\texttt{What to generate}$",
-            options=("Text (GPT 3.5)", "Text (GPT 4)", "Image (DALL·E 3)"),
+            options=(
+                "Text (GPT 3.5)", "Text (GPT 4)",
+                "Text with Image", "Image (DALL·E 3)"
+            ),
             label_visibility="collapsed",
             # horizontal=True,
             on_change=switch_between_apps,
@@ -603,9 +867,11 @@ def create_text_image():
         if option == "Text (GPT 3.5)":
             create_text("gpt-3.5-turbo")
         elif option == "Text (GPT 4)":
-            create_text("gpt-4")
+            create_text("gpt-4-1106-preview")
+        elif option == "Text with Image":
+            create_text_with_image("gpt-4-vision-preview")
         else:
-            create_image()
+            create_image("dall-e-3")
     else:
         st.write("")
         if choice_api == "Your key":
