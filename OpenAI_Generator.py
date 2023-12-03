@@ -840,7 +840,7 @@ def create_text_image():
         st.write("")
         st.write("**API Key Selection**")
         choice_api = st.sidebar.radio(
-            label="$\\hspace{0.25em}\\texttt{Choic of API}$",
+            label="$\\hspace{0.25em}\\texttt{Choice of API}$",
             options=("Your key", "My key"),
             label_visibility="collapsed",
             horizontal=True,
