@@ -155,6 +155,7 @@ def openai_create_image(description, model="dall-e-3", size="1024x1024"):
 
     Args:
         description (string): User description
+        model (string): Default set to "dall-e-3
         size (string): Pixel size of the generated image
 
     Return:
@@ -212,8 +213,9 @@ def openai_query_uploaded_image(image_b64, query, model="gpt-4-vision-preview"):
     This function answers the user's query about the uploaded image.
 
     Args:
-        image (base64 encoded string): base64 encoded image
-        query (string): the user's query.
+        image_b64 (base64 encoded string): base64 encoded image
+        query (string): the user's query
+        model (string): default set to "gpt-4-vision-preview"
 
     Return:
         text as an answer to the user's query.
