@@ -508,7 +508,7 @@ def reset_qna_image():
 
 def create_text(model):
     """
-    This function geneates text based on user input
+    This function generates text based on user input
     by calling chat_complete().
 
     model is set to "gpt-3.5-turbo" or "gpt-4".
@@ -774,7 +774,7 @@ def create_text_with_image(model):
 
 def create_image(model):
     """
-    This function geneates image based on user description
+    This function generates image based on user description
     by calling openai_create_image().
     """
 
