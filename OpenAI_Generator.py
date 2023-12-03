@@ -155,7 +155,7 @@ def openai_create_image(description, model="dall-e-3", size="1024x1024"):
 
     Args:
         description (string): User description
-        model (string): Default set to "dall-e-3
+        model (string): Default set to "dall-e-3"
         size (string): Pixel size of the generated image
 
     Return:
