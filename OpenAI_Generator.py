@@ -387,7 +387,7 @@ def perform_tts(text):
         with st.spinner("TTS in progress..."):
             audio_response = st.session_state.openai.audio.speech.create(
                 model="tts-1",
-                voice="shimmer",
+                voice="fable",
                 input=text,
             )
     except Exception:
@@ -668,7 +668,6 @@ def create_text_with_image(model):
         st.session_state.image_source = st.radio(
             label="Image selection",
             options=sources,
-            horizontal=True,
             index=sources.index(st.session_state.pre_image_source),
             label_visibility="collapsed",
         )
@@ -880,6 +879,9 @@ def create_text_image():
                 **Enter your OpenAI API key in the sidebar**
 
                 [Get an OpenAI API key](https://platform.openai.com/api-keys)
+                The GPT-4 API can be accessed for those who have made
+                a payment of $1 to OpenAI (strange policy) at the time of
+                writing this code.
                 """
             )
         else:
