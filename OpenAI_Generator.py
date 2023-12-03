@@ -6,7 +6,7 @@ import streamlit as st
 import openai
 from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
-import os, io, base64, requests
+import os, io, base64, requests, re
 from langchain.document_loaders import PyPDFLoader
 from langchain.document_loaders import Docx2txtLoader
 from langchain.document_loaders import TextLoader
@@ -461,6 +461,20 @@ def shorten_image(image, max_pixels=1024):
     return image
 
 
+def is_url(text):
+    """
+    This function determines whether text is a URL or not.
+    """
+
+    regex = r"(http|https)://([\w_-]+(?:\.[\w_-]+)+)(:\S*)?"
+    p = re.compile(regex)
+    match = p.match(text)
+    if match:
+        return True
+    else:
+        return False
+
+
 def reset_conversation():
     st.session_state.messages = [
         SystemMessage(content=st.session_state.prev_ai_role)
@@ -674,6 +688,7 @@ def create_text_with_image(model):
 
     st.write("")
     st.write("##### Image to ask about")
+    st.write("")
 
     if st.session_state.image_source == "From URL":
         # Enter a URL
@@ -684,7 +699,10 @@ def create_text_with_image(model):
             on_change=reset_qna_image
         )
         if image_url:
-            st.session_state.uploaded_image = image_url
+            if is_url(image_url):
+                st.session_state.uploaded_image = image_url
+            else:
+                st.error("Enter a proper URL", icon="🚨")
     else:
         # Upload an image file
         st.write("###### :blue[Upload your image]")
@@ -702,7 +720,6 @@ def create_text_with_image(model):
                 image = Image.open(image_file)
             except UnidentifiedImageError as e:
                 st.error(f"An error occurred: {e}", icon="🚨")
-                return None
 
             st.session_state.uploaded_image = shorten_image(image, 1024)
 
