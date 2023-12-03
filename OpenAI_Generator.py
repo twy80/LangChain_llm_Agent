@@ -180,6 +180,18 @@ def openai_create_image(description, model="dall-e-3", size="1024x1024"):
 
 
 def openai_query_image_url(image_url, query, model="gpt-4-vision-preview"):
+    """
+    This function answers the user's query about the given image from a URL.
+
+    Args:
+        image_url (string): URL of the image
+        query (string): the user's query
+        model (string): default set to "gpt-4-vision-preview"
+
+    Return:
+        text as an answer to the user's query.
+    """
+
     try:
         with st.spinner("AI is thinking..."):
             response = st.session_state.openai.chat.completions.create(
