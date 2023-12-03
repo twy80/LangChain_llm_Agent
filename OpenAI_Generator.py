@@ -725,7 +725,7 @@ def create_text_with_image(model):
 
     # Capture the user's query and provide a response if the image is ready
     if st.session_state.uploaded_image:
-        st.image(st.session_state.uploaded_image)
+        st.image(image=st.session_state.uploaded_image, use_column_width=True)
 
         # Print query & answer
         if st.session_state.qna["question"] and st.session_state.qna["answer"]:
