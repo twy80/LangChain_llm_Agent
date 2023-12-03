@@ -718,10 +718,9 @@ def create_text_with_image(model):
             # Process the uploaded image file
             try:
                 image = Image.open(image_file)
+                st.session_state.uploaded_image = shorten_image(image, 1024)
             except UnidentifiedImageError as e:
                 st.error(f"An error occurred: {e}", icon="🚨")
-
-            st.session_state.uploaded_image = shorten_image(image, 1024)
 
     # Capture the user's query and provide a response if the image is ready
     if st.session_state.uploaded_image:
