@@ -24,7 +24,7 @@
   you will need to request a password.
 
 ## Usage
-[![Exploring the App: A Visual Guide]([files/Streamlit_LLM_App.png](https://youtu.be/GOnGXtYIX0Q))]("Exploring the App: A Visual Guide")
+[![Exploring the App: A Visual Guide](files/Streamlit_LLM_App.png)](https://youtu.be/GOnGXtYIX0Q)
 ```python
 streamlit run OpenAI_Generator.py
 ```
