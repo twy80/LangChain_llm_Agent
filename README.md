@@ -23,6 +23,7 @@
   you will need to request a password.
 
 ## Usage
+[![Exploring the App: A Visual Guide](files/Streamlit_LLM_App.png)](files/Streamlit_LLM_App.mp4 "Exploring the App: A Visual Guide")
 ```python
 streamlit run OpenAI_Generator.py
 ```
