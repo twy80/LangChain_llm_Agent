@@ -4,7 +4,7 @@
   
   - Text outputs are generated using large language models such as "gpt-3.5-turbo",
     "gpt-4-turbo", or "gpt-4-vision-preview", and images are generated using
-    "dall-e-3", all from OpenAI.
+    "dall-e-3"
 
   - Temperature can be set by the user
 
