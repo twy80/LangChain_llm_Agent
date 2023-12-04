@@ -34,15 +34,15 @@ def initialize_session_state_variables():
         st.session_state.openai = None
 
     # variables for chatbot
-    if "prev_ai_role" not in st.session_state:
-        st.session_state.prev_ai_role = "You are a helpful assistant."
-
     if "ai_role" not in st.session_state:
-        st.session_state.ai_role = st.session_state.prev_ai_role
+        st.session_state.ai_role = "You are a helpful assistant."
+
+    if "prev_ai_role" not in st.session_state:
+        st.session_state.prev_ai_role = st.session_state.ai_role
 
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            SystemMessage(content=st.session_state.prev_ai_role)
+            SystemMessage(content=st.session_state.ai_role)
         ]
 
     if "prompt_exists" not in st.session_state:
@@ -491,8 +491,9 @@ def is_url(text):
 
 def reset_conversation():
     st.session_state.messages = [
-        SystemMessage(content=st.session_state.prev_ai_role)
+        SystemMessage(content=st.session_state.ai_role)
     ]
+    st.session_state.prev_ai_role = st.session_state.ai_role
     st.session_state.prompt_exists = False
     st.session_state.human_enq = []
     st.session_state.ai_resp = []
@@ -570,8 +571,8 @@ def create_text(model):
     )
 
     if st.session_state.ai_role != st.session_state.prev_ai_role:
-        st.session_state.prev_ai_role = st.session_state.ai_role
         reset_conversation()
+        st.rerun()
 
     if st.session_state.ai_role == doc_analyzer:
         st.write("")
@@ -607,11 +608,11 @@ def create_text(model):
     if st.session_state.ai_role == doc_analyzer and st.session_state.sources is not None:
         with st.expander("Sources"):
             c1, c2, _ = st.columns(3)
-            c1.write("Uploaded document")
+            c1.write("Uploaded document:")
             columns = c2.columns(len(st.session_state.sources))
             for index, column in enumerate(columns):
                 column.markdown(
-                    f"[{index + 1}]",
+                    f"{index + 1}\)",
                     help=st.session_state.sources[index].page_content
                 )
 
