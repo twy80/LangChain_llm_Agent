@@ -805,7 +805,6 @@ def create_image(model):
 
     st.write("")
     st.write("##### Description for your image")
-    st.write("")
 
     if st.session_state.image_url is not None:
         st.info(st.session_state.image_description)
