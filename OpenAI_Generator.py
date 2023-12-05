@@ -769,20 +769,22 @@ def create_text_with_image(model):
 
         if st.session_state.prompt_exists:
             if st.session_state.image_source == "From URL":
-                st.session_state.qna["answer"] = openai_query_image_url(
+                generated_text = openai_query_image_url(
                     image_url=st.session_state.uploaded_image,
                     query=st.session_state.qna["question"],
                     model=model
                 )
             else:
-                st.session_state.qna["answer"] = openai_query_uploaded_image(
+                generated_text = openai_query_uploaded_image(
                     image_b64=image_to_base64(st.session_state.uploaded_image),
                     query=st.session_state.qna["question"],
                     model=model
                 )
 
             st.session_state.prompt_exists = False
-            st.rerun()
+            if generated_text is not None:
+                st.session_state.qna["answer"] = generated_text
+                st.rerun()
 
 
 def create_image(model):
@@ -834,7 +836,8 @@ def create_image(model):
             st.session_state.image_description, model, image_size
         )
         st.session_state.prompt_exists = False
-        st.rerun()
+        if st.session_state.image_url is not None:
+            st.rerun()
 
 
 def create_text_image():
@@ -894,7 +897,7 @@ def create_text_image():
 
     if authen:
         if option == "Text (GPT 3.5)":
-            create_text("gpt-3.5-turbo")
+            create_text("gpt-3.5-turbo-1106")
         elif option == "Text (GPT 4)":
             create_text("gpt-4-1106-preview")
         elif option == "Text with Image":
