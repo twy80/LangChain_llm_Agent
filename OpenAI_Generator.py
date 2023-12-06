@@ -35,14 +35,11 @@ def initialize_session_state_variables():
 
     # variables for chatbot
     if "ai_role" not in st.session_state:
-        st.session_state.ai_role = "You are a helpful assistant."
-
-    if "prev_ai_role" not in st.session_state:
-        st.session_state.prev_ai_role = st.session_state.ai_role
+        st.session_state.ai_role = 2 * ["You are a helpful assistant."]
 
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            SystemMessage(content=st.session_state.ai_role)
+            SystemMessage(content=st.session_state.ai_role[0])
         ]
 
     if "prompt_exists" not in st.session_state:
@@ -54,11 +51,8 @@ def initialize_session_state_variables():
     if "ai_resp" not in st.session_state:
         st.session_state.ai_resp = []
 
-    if "pre_temp" not in st.session_state:
-        st.session_state.pre_temp = 0.7
-
-    if "temp_value" not in st.session_state:
-        st.session_state.temp_value = st.session_state.pre_temp
+    if "temperature" not in st.session_state:
+        st.session_state.temperature = [0.7, 0.7]
 
     # variables for audio and image
     if "prev_audio_bytes" not in st.session_state:
@@ -82,11 +76,8 @@ def initialize_session_state_variables():
     if "qna" not in st.session_state:
         st.session_state.qna = {"question": "", "answer": ""}
 
-    if "pre_image_source" not in st.session_state:
-        st.session_state.pre_image_source = "From URL"
-
     if "image_source" not in st.session_state:
-        st.session_state.image_source = st.session_state.pre_image_source
+        st.session_state.image_source = 2 * ["From URL"]
 
     # variables for RAG
     if "vector_store" not in st.session_state:
@@ -491,13 +482,13 @@ def is_url(text):
 
 def reset_conversation():
     st.session_state.messages = [
-        SystemMessage(content=st.session_state.ai_role)
+        SystemMessage(content=st.session_state.ai_role[0])
     ]
-    st.session_state.prev_ai_role = st.session_state.ai_role
+    st.session_state.ai_role[1] = st.session_state.ai_role[0]
     st.session_state.prompt_exists = False
     st.session_state.human_enq = []
     st.session_state.ai_resp = []
-    st.session_state.pre_temp = st.session_state.temp_value
+    st.session_state.temperature[1] = st.session_state.temperature[0]
     st.session_state.play_audio = False
     st.session_state.vector_store = None
     st.session_state.sources = None
@@ -505,9 +496,9 @@ def reset_conversation():
 
 
 def switch_between_apps():
-    st.session_state.pre_temp = st.session_state.temp_value
-    st.session_state.pre_image_source = st.session_state.image_source
-    st.session_state.prev_ai_role = st.session_state.ai_role
+    st.session_state.temperature[1] = st.session_state.temperature[0]
+    st.session_state.image_source[1] = st.session_state.image_source[0]
+    st.session_state.ai_role[1] = st.session_state.ai_role[0]
 
 
 def enable_user_input():
@@ -550,11 +541,11 @@ def create_text(model):
         )
         st.write("")
         st.write("**Temperature**")
-        st.session_state.temp_value = st.slider(
+        st.session_state.temperature[0] = st.slider(
             label="$\\hspace{0.08em}\\texttt{Temperature}\,$ (higher $\Rightarrow$ more random)",
             min_value=0.0,
             max_value=1.0,
-            value=st.session_state.pre_temp,
+            value=st.session_state.temperature[1],
             step=0.1,
             format="%.1f",
             label_visibility="collapsed",
@@ -563,18 +554,18 @@ def create_text(model):
 
     st.write("")
     st.write("##### Message to AI")
-    st.session_state.ai_role = st.selectbox(
+    st.session_state.ai_role[0] = st.selectbox(
         label="AI's role",
         options=roles,
-        index=roles.index(st.session_state.prev_ai_role),
+        index=roles.index(st.session_state.ai_role[1]),
         label_visibility="collapsed",
     )
 
-    if st.session_state.ai_role != st.session_state.prev_ai_role:
+    if st.session_state.ai_role[0] != st.session_state.ai_role[1]:
         reset_conversation()
         st.rerun()
 
-    if st.session_state.ai_role == doc_analyzer:
+    if st.session_state.ai_role[0] == doc_analyzer:
         st.write("")
         left, right = st.columns([4, 7])
         left.write("##### Document to ask about")
@@ -605,7 +596,7 @@ def create_text(model):
         with st.chat_message("ai"):
             st.write(ai)
 
-    if st.session_state.ai_role == doc_analyzer and st.session_state.sources is not None:
+    if st.session_state.ai_role[0] == doc_analyzer and st.session_state.sources is not None:
         with st.expander("Sources"):
             c1, c2, _ = st.columns(3)
             c1.write("Uploaded document:")
@@ -628,7 +619,7 @@ def create_text(model):
     user_input = st.chat_input(
         placeholder="Enter your query",
         on_submit=enable_user_input,
-        disabled=not uploaded_file if st.session_state.ai_role == doc_analyzer else False,
+        disabled=not uploaded_file if st.session_state.ai_role[0] == doc_analyzer else False
     )
 
     # Use your microphone
@@ -651,7 +642,7 @@ def create_text(model):
             st.write(user_prompt)
 
         with st.chat_message("ai"):
-            if st.session_state.ai_role == doc_analyzer:  # RAG (when there is a document uploaded)
+            if st.session_state.ai_role[0] == doc_analyzer:
                 generated_text, st.session_state.sources = document_qna(
                     user_prompt,
                     vector_store=st.session_state.vector_store,
@@ -660,7 +651,7 @@ def create_text(model):
             else:  # General chatting
                 generated_text = chat_complete(
                     user_prompt,
-                    temperature=st.session_state.temp_value,
+                    temperature=st.session_state.temperature[0],
                     model=model
                 )
 
@@ -694,10 +685,10 @@ def create_text_with_image(model):
         sources = ("From URL", "Uploaded")
         st.write("")
         st.write("**Image selection**")
-        st.session_state.image_source = st.radio(
+        st.session_state.image_source[0] = st.radio(
             label="Image selection",
             options=sources,
-            index=sources.index(st.session_state.pre_image_source),
+            index=sources.index(st.session_state.image_source[1]),
             label_visibility="collapsed",
         )
 
@@ -705,7 +696,7 @@ def create_text_with_image(model):
     st.write("##### Image to ask about")
     st.write("")
 
-    if st.session_state.image_source == "From URL":
+    if st.session_state.image_source[0] == "From URL":
         # Enter a URL
         st.write("###### :blue[Enter the URL of your image]")
 
@@ -768,7 +759,7 @@ def create_text_with_image(model):
             st.session_state.prompt_exists = True
 
         if st.session_state.prompt_exists:
-            if st.session_state.image_source == "From URL":
+            if st.session_state.image_source[0] == "From URL":
                 generated_text = openai_query_image_url(
                     image_url=st.session_state.uploaded_image,
                     query=st.session_state.qna["question"],
@@ -866,6 +857,7 @@ def create_text_image():
             st.session_state.openai_api_key = st.text_input(
                 label="$\\hspace{0.25em}\\texttt{Your OpenAI API Key}$",
                 type="password",
+                placeholder="sk-",
                 label_visibility="collapsed",
             )
             authen = False if st.session_state.openai_api_key == "" else True
