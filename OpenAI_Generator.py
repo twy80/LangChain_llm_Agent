@@ -559,12 +559,12 @@ def create_text(model):
         label="AI's role",
         options=roles,
         index=roles.index(st.session_state.ai_role[1]),
+        # on_change=reset_conversation,
         label_visibility="collapsed",
     )
 
     if st.session_state.ai_role[0] != st.session_state.ai_role[1]:
         reset_conversation()
-        st.rerun()
 
     if st.session_state.ai_role[0] == doc_analyzer:
         st.write("")
@@ -631,10 +631,10 @@ def create_text(model):
 
     if audio_bytes != st.session_state.audio_bytes:
         user_prompt = read_audio(audio_bytes)
+        st.session_state.audio_bytes = audio_bytes
         if user_prompt is not None:
             st.session_state.prompt_exists = True
             st.session_state.mic_used = True
-        st.session_state.audio_bytes = audio_bytes
     elif user_input and st.session_state.prompt_exists:
         user_prompt = user_input.strip()
 
