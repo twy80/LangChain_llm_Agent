@@ -4,9 +4,10 @@ ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 
 import streamlit as st
 import openai
+from io import BytesIO
 from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
-import os, io, base64, requests, re
+import os, base64, requests, re
 from langchain.document_loaders import PyPDFLoader
 from langchain.document_loaders import Docx2txtLoader
 from langchain.document_loaders import TextLoader
@@ -55,8 +56,8 @@ def initialize_session_state_variables():
         st.session_state.temperature = [0.7, 0.7]
 
     # variables for audio and image
-    if "prev_audio_bytes" not in st.session_state:
-        st.session_state.prev_audio_bytes = None
+    if "audio_bytes" not in st.session_state:
+        st.session_state.audio_bytes = None
 
     if "mic_used" not in st.session_state:
         st.session_state.mic_used = False
@@ -277,7 +278,7 @@ def get_vector_store(uploaded_file):
     if uploaded_file is None:
         return None
     else:
-        file_bytes = io.BytesIO(uploaded_file.read())
+        file_bytes = BytesIO(uploaded_file.read())
         with open(uploaded_document, "wb") as f:
             f.write(file_bytes.read())
 
@@ -369,7 +370,7 @@ def read_audio(audio_bytes):
     This function reads audio bytes and returns the corresponding text.
     """
     try:
-        audio_data = io.BytesIO(audio_bytes)
+        audio_data = BytesIO(audio_bytes)
         audio_data.name = "recorded_audio.wav"  # dummy name
 
         transcript = st.session_state.openai.audio.transcriptions.create(
@@ -437,7 +438,7 @@ def image_to_base64(image):
         image = image.convert('RGB')
 
     # Save the image to a BytesIO object
-    buffered_image = io.BytesIO()
+    buffered_image = BytesIO()
     image.save(buffered_image, format="JPEG")
 
     # Convert BytesIO to bytes and encode to base64
@@ -628,12 +629,12 @@ def create_text(model):
         recording_color="#e87070", neutral_color="#6aa36f"        
     )
 
-    if audio_bytes != st.session_state.prev_audio_bytes:
+    if audio_bytes != st.session_state.audio_bytes:
         user_prompt = read_audio(audio_bytes)
         if user_prompt is not None:
             st.session_state.prompt_exists = True
             st.session_state.mic_used = True
-        st.session_state.prev_audio_bytes = audio_bytes
+        st.session_state.audio_bytes = audio_bytes
     elif user_input and st.session_state.prompt_exists:
         user_prompt = user_input.strip()
 
@@ -744,9 +745,9 @@ def create_text_with_image(model):
             pause_threshold=3.0, text="Speak", icon_size="2x",
             recording_color="#e87070", neutral_color="#6aa36f"        
         )
-        if audio_bytes != st.session_state.prev_audio_bytes:
+        if audio_bytes != st.session_state.audio_bytes:
             st.session_state.qna["question"] = read_audio(audio_bytes)
-            st.session_state.prev_audio_bytes = audio_bytes
+            st.session_state.audio_bytes = audio_bytes
             if st.session_state.qna["question"] is not None:
                 st.session_state.prompt_exists = True
 
@@ -808,9 +809,9 @@ def create_image(model):
         pause_threshold=3.0, text="Speak", icon_size="2x",
         recording_color="#e87070", neutral_color="#6aa36f"        
     )
-    if audio_bytes != st.session_state.prev_audio_bytes:
+    if audio_bytes != st.session_state.audio_bytes:
         st.session_state.image_description = read_audio(audio_bytes)
-        st.session_state.prev_audio_bytes = audio_bytes
+        st.session_state.audio_bytes = audio_bytes
         if st.session_state.image_description is not None:
             st.session_state.prompt_exists = True
 
