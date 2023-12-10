@@ -5,6 +5,7 @@ ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 import streamlit as st
 import openai
 from io import BytesIO
+from tempfile import NamedTemporaryFile
 from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
 import os, base64, requests, re
@@ -15,7 +16,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
-from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from langchain.schema import SystemMessage, HumanMessage  # AIMessage
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -62,8 +63,8 @@ def initialize_session_state_variables():
     if "mic_used" not in st.session_state:
         st.session_state.mic_used = False
 
-    if "play_audio" not in st.session_state:
-        st.session_state.play_audio = False
+    if "audio_response" not in st.session_state:
+        st.session_state.audio_response = None
 
     if "image_url" not in st.session_state:
         st.session_state.image_url = None
@@ -190,17 +191,15 @@ def openai_query_image_url(image_url, query, model="gpt-4-vision-preview"):
                 model=model,
                 messages=[
                     {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": f"{query}"},
-                        {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"{image_url}",
-                        },
-                        },
-                    ],
-                    }
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": f"{query}"},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"{image_url}"},
+                            },
+                        ],
+                    },
                 ],
                 max_tokens=300,
             )
@@ -226,30 +225,30 @@ def openai_query_uploaded_image(image_b64, query, model="gpt-4-vision-preview"):
     """
 
     headers = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {st.session_state.openai_api_key}"
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {st.session_state.openai_api_key}"
     }
 
     payload = {
-    "model": f"{model}",
-    "messages": [
-        {
-        "role": "user",
-        "content": [
+        "model": f"{model}",
+        "messages": [
             {
-            "type": "text",
-            "text": f"{query}"
-            },
-            {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64,{image_b64}"
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"{query}"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_b64}"
+                        }
+                    }
+                ]
             }
-            }
-        ]
-        }
-    ],
-    "max_tokens": 300
+        ],
+        "max_tokens": 300
     }
 
     try:
@@ -273,50 +272,54 @@ def get_vector_store(uploaded_file):
     and returns a FAISS vector store.
     """
 
-    uploaded_document = "files/uploaded_document"
-
     if uploaded_file is None:
         return None
+
+    file_bytes = BytesIO(uploaded_file.read())
+
+    # Create a temporary file within the "files/" directory
+    with NamedTemporaryFile(dir="files/", delete=False) as file:
+        filepath = file.name
+        file.write(file_bytes.read())
+
+    # Determine the loader based on the file extension.
+    if uploaded_file.name.lower().endswith(".pdf"):
+        loader = PyPDFLoader(filepath)
+    elif uploaded_file.name.lower().endswith(".txt"):
+        loader = TextLoader(filepath)
+    elif uploaded_file.name.lower().endswith(".docx"):
+        loader = Docx2txtLoader(filepath)
     else:
-        file_bytes = BytesIO(uploaded_file.read())
-        with open(uploaded_document, "wb") as f:
-            f.write(file_bytes.read())
+        st.error("Please load a file in pdf or txt", icon="🚨")
+        os.remove(filepath)
+        return None
 
-        # Determine the loader based on the file extension.
-        if uploaded_file.name.lower().endswith(".pdf"):
-            loader = PyPDFLoader(uploaded_document)
-        elif uploaded_file.name.lower().endswith(".txt"):
-            loader = TextLoader(uploaded_document)
-        elif uploaded_file.name.lower().endswith(".docx"):
-            loader = Docx2txtLoader(uploaded_document)
-        else:
-            st.error("Please load a file in pdf or txt", icon="🚨")
-            return None
+    # Load the document using the selected loader.
+    document = loader.load()
 
-        # Load the document using the selected loader.
-        document = loader.load()
+    try:
+        with st.spinner("Vector store in preparation..."):
+            # Split the loaded text into smaller chunks for processing.
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                # separators=["\n", "\n\n", "(?<=\. )", "", " "],
+            )
+            doc = text_splitter.split_documents(document)
+            # Create a FAISS vector database.
+            embeddings = OpenAIEmbeddings(
+                openai_api_key=st.session_state.openai_api_key
+            )
+            vector_store = FAISS.from_documents(doc, embeddings)
+    except Exception as e:
+        vector_store = None
+        st.error(f"An error occurred: {e}", icon="🚨")
+    finally:
+        # Ensure the temporary file is deleted after processing
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
-        try:
-            with st.spinner("Vector store in preparation..."):
-                # Split the loaded text into smaller chunks for processing.
-                text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=1000,
-                    chunk_overlap=200,
-                    # separators=["\n", "\n\n", "(?<=\. )", "", " "],
-                )
-
-                doc = text_splitter.split_documents(document)
-
-                # Create a FAISS vector database.
-                embeddings = OpenAIEmbeddings(
-                    openai_api_key=st.session_state.openai_api_key
-                )
-                vector_store = FAISS.from_documents(doc, embeddings)
-        except Exception as e:
-            vector_store = None
-            st.error(f"An error occurred: {e}", icon="🚨")
-
-        return vector_store
+    return vector_store
 
 
 def document_qna(query, vector_store, model="gpt-3.5-turbo"):
@@ -377,8 +380,9 @@ def read_audio(audio_bytes):
             model="whisper-1", file=audio_data
         )
         text = transcript.text
-    except Exception:
+    except Exception as e:
         text = None
+        st.error(f"An error occurred: {e}", icon="🚨")
 
     return text
 
@@ -396,31 +400,31 @@ def perform_tts(text):
                 voice="fable",
                 input=text,
             )
-    except Exception:
+    except Exception as e:
         audio_response = None
+        st.error(f"An error occurred: {e}", icon="🚨")
 
     return audio_response
 
 
-def autoplay_audio(file_path):
+def autoplay_audio(audio):
     """
-    This function takes an audio file as input,
+    This function takes an audio response from TTS as input,
     and automatically plays the audio file.
     """
 
-    # Get the file extension from the file path
-    _, ext = os.path.splitext(file_path)
-
-    # Determine the MIME type based on the file extension
-    mime_type = f"audio/{ext.lower()[1:]}"  # Remove the leading dot from the extension
-
-    with open(file_path, "rb") as f:
+    # Create a temporary file within the "files/" directory
+    with NamedTemporaryFile(dir="files/", suffix=".wav", delete=True) as f:
+        f.write(audio.read())
+        f.flush()  # Ensure all data is written to the file
+        # Move the file pointer to the beginning of the file before reading
+        f.seek(0)
         data = f.read()
-        b64 = base64.b64encode(data).decode()
+        b64 = base64.b64encode(data).decode("utf-8")
 
         md = f"""
             <audio controls autoplay style="width: 100%;">
-            <source src="data:{mime_type};base64,{b64}" type="{mime_type}">
+            <source src="data:audio/wav;base64,{b64}" type="audio/wav">
             </audio>
             """
 
@@ -434,8 +438,8 @@ def image_to_base64(image):
     """
 
     # Convert the image to RGB mode if necessary
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
+    if image.mode != "RGB":
+        image = image.convert("RGB")
 
     # Save the image to a BytesIO object
     buffered_image = BytesIO()
@@ -445,7 +449,7 @@ def image_to_base64(image):
     img_str = base64.b64encode(buffered_image.getvalue())
 
     # Convert bytes to string
-    base64_image = img_str.decode('utf-8')
+    base64_image = img_str.decode("utf-8")
 
     return base64_image
 
@@ -490,7 +494,7 @@ def reset_conversation():
     st.session_state.human_enq = []
     st.session_state.ai_resp = []
     st.session_state.temperature[1] = st.session_state.temperature[0]
-    st.session_state.play_audio = False
+    st.session_state.audio_response = None
     st.session_state.vector_store = None
     st.session_state.sources = None
     st.session_state.memory = None
@@ -518,9 +522,6 @@ def create_text(model):
 
     model is set to "gpt-3.5-turbo" or "gpt-4".
     """
-
-    # Audio file for TTS
-    text_audio_file = "files/output_text.wav"
 
     # initial system prompts
     general_role = "You are a helpful assistant."
@@ -609,9 +610,9 @@ def create_text(model):
                 )
 
     # Play TTS
-    if st.session_state.play_audio:
-        autoplay_audio(text_audio_file)
-        st.session_state.play_audio = False
+    if st.session_state.audio_response is not None:
+        autoplay_audio(st.session_state.audio_response)
+        st.session_state.audio_response = None
 
     # Reset the conversation
     st.button(label="Reset the conversation", on_click=reset_conversation)
@@ -661,10 +662,7 @@ def create_text(model):
             cond1 = st.session_state.tts == "Enabled"
             cond2 = st.session_state.tts == "Auto" and st.session_state.mic_used
             if cond1 or cond2:
-                audio_response = perform_tts(generated_text)
-                if audio_response is not None:
-                    audio_response.stream_to_file(text_audio_file)
-                    st.session_state.play_audio = True
+                st.session_state.audio_response = perform_tts(generated_text)
 
             st.session_state.mic_used = False
             st.session_state.human_enq.append(user_prompt)
