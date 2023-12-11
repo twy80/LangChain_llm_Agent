@@ -408,27 +408,51 @@ def perform_tts(text):
     return audio_response
 
 
-def autoplay_audio(audio_response):
+def autoplay_audio(audio):
     """
-    This function takes an audio response (a bytes-like object)
-    from TTS as input, and plays the audio.
+    This function takes an audio response from TTS as input,
+    and automatically plays the audio file.
     """
 
-    audio_data = audio_response.read()
+    # Create a temporary file within the "files/" directory
+    with NamedTemporaryFile(dir="files/", suffix=".wav", delete=True) as f:
+        f.write(audio.read())
+        f.flush()  # Ensure all data is written to the file
+        # Move the file pointer to the beginning of the file before reading
+        f.seek(0)
+        data = f.read()
+        b64 = base64.b64encode(data).decode("utf-8")
 
-    # Encode audio data to base64
-    b64 = base64.b64encode(audio_data).decode("utf-8")
+        md = f"""
+            <audio controls autoplay style="width: 100%;">
+            <source src="data:audio/wav;base64,{b64}" type="audio/wav">
+            </audio>
+            """
 
-    # Create a markdown string to embed the audio player with the base64 source
-    md = f"""
-        <audio controls autoplay style="width: 100%;">
-        <source src="data:audio/wav;base64,{b64}" type="audio/wav">
-        Your browser does not support the audio element.
-        </audio>
-        """
+        st.markdown(md, unsafe_allow_html=True)
 
-    # Use Streamlit to render the audio player
-    st.markdown(md, unsafe_allow_html=True)
+
+# def autoplay_audio(audio_response):
+#     """
+#     This function takes an audio response (a bytes-like object)
+#     from TTS as input, and plays the audio.
+#     """
+
+#     audio_data = audio_response.read()
+
+#     # Encode audio data to base64
+#     b64 = base64.b64encode(audio_data).decode("utf-8")
+
+#     # Create a markdown string to embed the audio player with the base64 source
+#     md = f"""
+#         <audio controls autoplay style="width: 100%;">
+#         <source src="data:audio/wav;base64,{b64}" type="audio/wav">
+#         Your browser does not support the audio element.
+#         </audio>
+#         """
+
+#     # Use Streamlit to render the audio player
+#     st.markdown(md, unsafe_allow_html=True)
 
 
 def image_to_base64(image):
