@@ -4,11 +4,11 @@ ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 
 import streamlit as st
 import openai
+import os, base64, requests, re
 from io import BytesIO
 from tempfile import NamedTemporaryFile
 from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
-import os, base64, requests, re
 from langchain.document_loaders import PyPDFLoader
 from langchain.document_loaders import Docx2txtLoader
 from langchain.document_loaders import TextLoader
@@ -422,7 +422,7 @@ def play_audio(audio_response):
     # Create a markdown string to embed the audio player with the base64 source
     md = f"""
         <audio controls autoplay style="width: 100%;">
-        <source src="data:audio/wav;base64,{b64}" type="audio/wav">
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
         Your browser does not support the audio element.
         </audio>
         """
