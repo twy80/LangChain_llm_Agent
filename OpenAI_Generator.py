@@ -915,6 +915,7 @@ def create_text_image():
         st.write("---")
         st.write(
             "<small>**T.-W. Yoon**, Aug. 2023  \n</small>",
+            "<small>[OpenAI Assistants](https://assistants.streamlit.app/)  \n</small>",
             "<small>[TWY's Playground](https://twy-playground.streamlit.app/)  \n</small>",
             "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
             unsafe_allow_html=True,
