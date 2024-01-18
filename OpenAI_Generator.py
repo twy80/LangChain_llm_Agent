@@ -875,7 +875,7 @@ def create_text_image():
 
         st.write("")
         st.write("**What to Generate**")
-        option = st.sidebar.radio(
+        option = st.radio(
             label="$\\hspace{0.25em}\\texttt{What to generate}$",
             options=(
                 "Text (GPT 3.5)", "Text (GPT 4)",
