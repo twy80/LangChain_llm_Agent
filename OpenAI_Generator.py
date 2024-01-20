@@ -9,18 +9,18 @@ from io import BytesIO
 from tempfile import NamedTemporaryFile
 from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
-from langchain.document_loaders import PyPDFLoader
-from langchain.document_loaders import Docx2txtLoader
-from langchain.document_loaders import TextLoader
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import Docx2txtLoader
+from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage  # AIMessage
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from langchain.callbacks import StreamlitCallbackHandler
+from langchain_community.callbacks import StreamlitCallbackHandler
 
 
 def initialize_session_state_variables():
