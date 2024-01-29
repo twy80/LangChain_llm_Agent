@@ -266,37 +266,41 @@ def openai_query_uploaded_image(image_b64, query, model="gpt-4-vision-preview"):
     return generated_text
 
 
-def get_vector_store(uploaded_file):
+def get_vector_store(uploaded_files):
     """
-    This function takes an UploadedFile object as input,
+    This function takes a list of UploadedFile objects as input,
     and returns a FAISS vector store.
     """
 
-    if uploaded_file is None:
+    if uploaded_files == []:
         return None
 
-    file_bytes = BytesIO(uploaded_file.read())
+    documents = []
+    filepaths = []
+    for uploaded_file in uploaded_files:
+        file_bytes = BytesIO(uploaded_file.read())
 
-    # Create a temporary file within the "files/" directory
-    with NamedTemporaryFile(dir="files/", delete=False) as file:
-        filepath = file.name
-        file.write(file_bytes.read())
+        # Create a temporary file within the "files/" directory
+        with NamedTemporaryFile(dir="files/", delete=False) as file:
+            filepath = file.name
+            file.write(file_bytes.read())
+        filepaths.append(filepath)
 
-    # Determine the loader based on the file extension.
-    if uploaded_file.name.lower().endswith(".pdf"):
-        loader = PyPDFLoader(filepath)
-    elif uploaded_file.name.lower().endswith(".txt"):
-        loader = TextLoader(filepath)
-    elif uploaded_file.name.lower().endswith(".docx"):
-        loader = Docx2txtLoader(filepath)
-    else:
-        st.error("Please load a file in pdf or txt", icon="🚨")
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        return None
+        # Determine the loader based on the file extension.
+        if uploaded_file.name.lower().endswith(".pdf"):
+            loader = PyPDFLoader(filepath)
+        elif uploaded_file.name.lower().endswith(".txt"):
+            loader = TextLoader(filepath)
+        elif uploaded_file.name.lower().endswith(".docx"):
+            loader = Docx2txtLoader(filepath)
+        else:
+            st.error("Please load a file in pdf or txt", icon="🚨")
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            return None
 
-    # Load the document using the selected loader.
-    document = loader.load()
+        # Load the document using the selected loader.
+        documents.extend(loader.load())
 
     try:
         with st.spinner("Vector store in preparation..."):
@@ -306,7 +310,7 @@ def get_vector_store(uploaded_file):
                 chunk_overlap=200,
                 # separators=["\n", "\n\n", "(?<=\. )", "", " "],
             )
-            doc = text_splitter.split_documents(document)
+            doc = text_splitter.split_documents(documents)
             # Create a FAISS vector database.
             embeddings = OpenAIEmbeddings(
                 openai_api_key=st.session_state.openai_api_key
@@ -317,8 +321,9 @@ def get_vector_store(uploaded_file):
         st.error(f"An error occurred: {e}", icon="🚨")
     finally:
         # Ensure the temporary file is deleted after processing
-        if os.path.exists(filepath):
-            os.remove(filepath)
+        for filepath in filepaths:
+            if os.path.exists(filepath):
+                os.remove(filepath)
 
     return vector_store
 
@@ -528,7 +533,7 @@ def create_text(model):
     english_teacher = "You are an English teacher who analyzes texts and corrects any grammatical issues if necessary."
     translator = "You are a translator who translates English into Korean and Korean into English."
     coding_adviser = "You are an expert in coding who provides advice on good coding styles."
-    doc_analyzer = "You are an assistant analyzing the document uploaded."
+    doc_analyzer = "You are an assistant analyzing the document(s) uploaded."
     roles = (general_role, english_teacher, translator, coding_adviser, doc_analyzer)
 
     with st.sidebar:
@@ -570,21 +575,24 @@ def create_text(model):
     if st.session_state.ai_role[0] == doc_analyzer:
         st.write("")
         left, right = st.columns([4, 7])
-        left.write("##### Document to ask about")
+        left.write("##### Document(s) to ask about")
         right.write("Temperature is set to 0.")
-        uploaded_file = st.file_uploader(
+        uploaded_files = st.file_uploader(
             label="Upload an article",
             type=["txt", "pdf", "docx"],
-            accept_multiple_files=False,
+            accept_multiple_files=True,
             on_change=reset_conversation,
             label_visibility="collapsed",
         )
-        if st.session_state.vector_store is None:
+        button = "Upload the selected document(s)"
+        if st.button(label=button) and st.session_state.vector_store is None:
             # Create the vector store.
-            st.session_state.vector_store = get_vector_store(uploaded_file)
+            st.session_state.vector_store = get_vector_store(uploaded_files)
 
             if st.session_state.vector_store is not None:
-                st.write(f"Vector store for :blue[[{uploaded_file.name}]] is ready!")
+                uploaded_file_names = [file.name for file in uploaded_files]
+                file_names = ", ".join(uploaded_file_names)
+                st.write(f"Vector store for :blue[[{file_names}]] is ready!")
 
     st.write("")
     left, right = st.columns([4, 7])
@@ -601,7 +609,7 @@ def create_text(model):
     if st.session_state.ai_role[0] == doc_analyzer and st.session_state.sources is not None:
         with st.expander("Sources"):
             c1, c2, _ = st.columns(3)
-            c1.write("Uploaded document:")
+            c1.write("Uploaded document(s):")
             columns = c2.columns(len(st.session_state.sources))
             for index, column in enumerate(columns):
                 column.markdown(
@@ -621,7 +629,7 @@ def create_text(model):
     user_input = st.chat_input(
         placeholder="Enter your query",
         on_submit=enable_user_input,
-        disabled=not uploaded_file if st.session_state.ai_role[0] == doc_analyzer else False
+        disabled=not uploaded_files if st.session_state.ai_role[0] == doc_analyzer else False
     )
 
     # Use your microphone
@@ -836,7 +844,7 @@ def create_text_image():
     openai_create_text() or openai_create_image(), respectively.
     """
 
-    st.write("## 🎭 ChatGPT (RAG)$\,$ &$\,$ DALL·E")
+    st.write("## 📚 ChatGPT (RAG)$\,$ &$\,$ DALL·E")
 
     # Initialize all the session state variables
     initialize_session_state_variables()
