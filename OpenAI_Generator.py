@@ -374,6 +374,17 @@ def document_qna(query, vector_store, model="gpt-3.5-turbo"):
     return generated_text, source_documents
 
 
+def display_text_with_equations(text):
+    # Replace inline LaTeX equation delimiters \\( ... \\) with $
+    modified_text = text.replace("\\(", "$").replace("\\)", "$")
+
+    # Replace block LaTeX equation delimiters \\[ ... \\] with $$
+    modified_text = modified_text.replace("\\[", "$$").replace("\\]", "$$")
+
+    # Use st.markdown to display the formatted text with equations
+    st.markdown(modified_text)
+
+
 def read_audio(audio_bytes):
     """
     This function reads audio bytes and returns the corresponding text.
@@ -604,7 +615,7 @@ def create_text(model):
         with st.chat_message("human"):
             st.write(human)
         with st.chat_message("ai"):
-            st.write(ai)
+            display_text_with_equations(ai)
 
     if st.session_state.ai_role[0] == doc_analyzer and st.session_state.sources is not None:
         with st.expander("Sources"):
@@ -744,7 +755,7 @@ def create_text_with_image(model):
             with st.chat_message("human"):
                 st.write(st.session_state.qna["question"])
             with st.chat_message("ai"):
-                st.write(st.session_state.qna["answer"])
+                display_text_with_equations(st.session_state.qna["answer"])
 
         # Use your microphone
         audio_bytes = audio_recorder(
