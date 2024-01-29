@@ -129,7 +129,7 @@ def chat_complete(user_prompt, model="gpt-3.5-turbo", temperature=0.7):
     # Add the user input to the messages
     st.session_state.messages.append(HumanMessage(content=user_prompt))
     try:
-        response = openai_llm(st.session_state.messages)
+        response = openai_llm.invoke(st.session_state.messages)
         generated_text = response.content
     except Exception as e:
         generated_text = None
