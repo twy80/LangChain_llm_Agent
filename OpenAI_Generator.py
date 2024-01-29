@@ -14,8 +14,8 @@ from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage  # AIMessage
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.memory import ConversationBufferMemory
@@ -361,7 +361,7 @@ def document_qna(query, vector_store, model="gpt-3.5-turbo"):
         try:
             # response to the query is given in the form
             # {"question": ..., "chat_history": [...], "answer": ...}.
-            response = conversation_chain({"question": query})
+            response = conversation_chain.invoke({"question": query})
             generated_text = response["answer"]
             source_documents = response["source_documents"]
 

@@ -3,6 +3,7 @@ streamlit
 audio-recorder-streamlit
 pillow
 langchain
+langchain-openai
 pypdf
 docx2txt
 faiss-cpu
