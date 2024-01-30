@@ -286,7 +286,7 @@ def get_vector_store(uploaded_files):
         for uploaded_file in uploaded_files:
             # Create a temporary file within the "files/" directory
             with NamedTemporaryFile(dir="files/", delete=False) as file:
-                file.write(uploaded_file.read())
+                file.write(uploaded_file.getbuffer())
                 filepath = file.name
             filepaths.append(filepath)
 
