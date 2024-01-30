@@ -595,7 +595,7 @@ def create_text(model):
             on_change=reset_conversation,
             label_visibility="collapsed",
         )
-        button = "Upload the selected document(s)"
+        button = "Create the vector store"
         if st.button(label=button) and st.session_state.vector_store is None:
             # Create the vector store.
             st.session_state.vector_store = get_vector_store(uploaded_files)
