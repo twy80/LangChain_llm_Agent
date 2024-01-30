@@ -277,32 +277,32 @@ def get_vector_store(uploaded_files):
 
     documents = []
     filepaths = []
-    for uploaded_file in uploaded_files:
-        file_bytes = BytesIO(uploaded_file.read())
-
-        # Create a temporary file within the "files/" directory
-        with NamedTemporaryFile(dir="files/", delete=False) as file:
-            filepath = file.name
-            file.write(file_bytes.read())
-        filepaths.append(filepath)
-
-        # Determine the loader based on the file extension.
-        if uploaded_file.name.lower().endswith(".pdf"):
-            loader = PyPDFLoader(filepath)
-        elif uploaded_file.name.lower().endswith(".txt"):
-            loader = TextLoader(filepath)
-        elif uploaded_file.name.lower().endswith(".docx"):
-            loader = Docx2txtLoader(filepath)
-        else:
-            st.error("Please load a file in pdf or txt", icon="🚨")
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            return None
-
-        # Load the document using the selected loader.
-        documents.extend(loader.load())
-
     try:
+        for uploaded_file in uploaded_files:
+            file_bytes = BytesIO(uploaded_file.read())
+    
+            # Create a temporary file within the "files/" directory
+            with NamedTemporaryFile(dir="files/", delete=False) as file:
+                filepath = file.name
+                file.write(file_bytes.read())
+            filepaths.append(filepath)
+    
+            # Determine the loader based on the file extension.
+            if uploaded_file.name.lower().endswith(".pdf"):
+                loader = PyPDFLoader(filepath)
+            elif uploaded_file.name.lower().endswith(".txt"):
+                loader = TextLoader(filepath)
+            elif uploaded_file.name.lower().endswith(".docx"):
+                loader = Docx2txtLoader(filepath)
+            else:
+                st.error("Please load a file in pdf or txt", icon="🚨")
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                return None
+    
+            # Load the document using the selected loader.
+            documents.extend(loader.load())
+
         with st.spinner("Vector store in preparation..."):
             # Split the loaded text into smaller chunks for processing.
             text_splitter = RecursiveCharacterTextSplitter(
