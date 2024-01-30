@@ -272,35 +272,35 @@ def get_vector_store(uploaded_files):
     and returns a FAISS vector store.
     """
 
-    if uploaded_files == []:
+    if not uploaded_files:
         return None
 
     documents = []
     filepaths = []
+    loader_map = {
+        ".pdf": PyPDFLoader,
+        ".txt": TextLoader,
+        ".docx": Docx2txtLoader
+    }
     try:
         for uploaded_file in uploaded_files:
-            file_bytes = BytesIO(uploaded_file.read())
-
             # Create a temporary file within the "files/" directory
             with NamedTemporaryFile(dir="files/", delete=False) as file:
+                file.write(uploaded_file.read())
                 filepath = file.name
-                file.write(file_bytes.read())
             filepaths.append(filepath)
 
-            # Determine the loader based on the file extension.
-            if uploaded_file.name.lower().endswith(".pdf"):
-                loader = PyPDFLoader(filepath)
-            elif uploaded_file.name.lower().endswith(".txt"):
-                loader = TextLoader(filepath)
-            elif uploaded_file.name.lower().endswith(".docx"):
-                loader = Docx2txtLoader(filepath)
-            else:
-                st.error("Please load a file in pdf or txt", icon="🚨")
-                if os.path.exists(filepath):
-                    os.remove(filepath)
+            file_ext = os.path.splitext(uploaded_file.name.lower())[1]
+            loader_class = loader_map.get(file_ext)
+            if not loader_class:
+                st.error(f"Unsupported file type: {file_ext}", icon="🚨")
+                for filepath in filepaths:
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
                 return None
 
             # Load the document using the selected loader.
+            loader = loader_class(filepath)
             documents.extend(loader.load())
 
         with st.spinner("Vector store in preparation..."):
