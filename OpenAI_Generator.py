@@ -907,9 +907,9 @@ def create_text_image():
 
     if authen:
         if option == "Text (GPT 3.5)":
-            create_text("gpt-3.5-turbo-1106")
+            create_text("gpt-3.5-turbo-0125")
         elif option == "Text (GPT 4)":
-            create_text("gpt-4-1106-preview")
+            create_text("gpt-4-0125-preview")
         elif option == "Text with Image":
             create_text_with_image("gpt-4-vision-preview")
         else:
