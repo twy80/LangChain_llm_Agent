@@ -172,7 +172,7 @@ def openai_create_image(description, model="dall-e-3", size="1024x1024"):
     return image_url
 
 
-def openai_query_image_url(image_url, query, model="gpt-4-vision-preview"):
+def openai_query_image(image_url, query, model="gpt-4-vision-preview"):
     """
     This function answers the user's query about the given image from a URL.
 
@@ -204,61 +204,6 @@ def openai_query_image_url(image_url, query, model="gpt-4-vision-preview"):
                 max_tokens=300,
             )
         generated_text = response.choices[0].message.content
-    except Exception as e:
-        generated_text = None
-        st.error(f"An error occurred: {e}", icon="🚨")
-
-    return generated_text
-
-
-def openai_query_uploaded_image(image_b64, query, model="gpt-4-vision-preview"):
-    """
-    This function answers the user's query about the uploaded image.
-
-    Args:
-        image_b64 (base64 encoded string): base64 encoded image
-        query (string): the user's query
-        model (string): default set to "gpt-4-vision-preview"
-
-    Return:
-        text as an answer to the user's query.
-    """
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {st.session_state.openai_api_key}"
-    }
-
-    payload = {
-        "model": f"{model}",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": f"{query}"
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_b64}"
-                        }
-                    }
-                ]
-            }
-        ],
-        "max_tokens": 300
-    }
-
-    try:
-        with st.spinner("AI is thinking..."):
-            response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=payload
-            )
-        generated_text = response.json()["choices"][0]["message"]["content"]
     except Exception as e:
         generated_text = None
         st.error(f"An error occurred: {e}", icon="🚨")
@@ -450,7 +395,8 @@ def play_audio(audio_response):
 def image_to_base64(image):
     """
     This function converts an image object from PIL to a base64
-    encoded image, and returns the resulting encoded image.
+    encoded image, and returns the resulting encoded image
+    in the form of a URL.
     """
 
     # Convert the image to RGB mode if necessary
@@ -467,7 +413,7 @@ def image_to_base64(image):
     # Convert bytes to string
     base64_image = img_str.decode("utf-8")
 
-    return base64_image
+    return f"data:image/jpeg;base64,{base64_image}"
 
 
 def shorten_image(image, max_pixels=1024):
@@ -742,7 +688,8 @@ def create_text_with_image(model):
             # Process the uploaded image file
             try:
                 image = Image.open(image_file)
-                st.session_state.uploaded_image = shorten_image(image, 1024)
+                image = shorten_image(image, 1024)
+                st.session_state.uploaded_image = image_to_base64(image)
             except UnidentifiedImageError as e:
                 st.error(f"An error occurred: {e}", icon="🚨")
 
@@ -777,18 +724,11 @@ def create_text_with_image(model):
             st.session_state.prompt_exists = True
 
         if st.session_state.prompt_exists:
-            if st.session_state.image_source[0] == "From URL":
-                generated_text = openai_query_image_url(
-                    image_url=st.session_state.uploaded_image,
-                    query=st.session_state.qna["question"],
-                    model=model
-                )
-            else:
-                generated_text = openai_query_uploaded_image(
-                    image_b64=image_to_base64(st.session_state.uploaded_image),
-                    query=st.session_state.qna["question"],
-                    model=model
-                )
+            generated_text = openai_query_image_url(
+                image_url=st.session_state.uploaded_image,
+                query=st.session_state.qna["question"],
+                model=model
+            )
 
             st.session_state.prompt_exists = False
             if generated_text is not None:
