@@ -724,7 +724,7 @@ def create_text_with_image(model):
             st.session_state.prompt_exists = True
 
         if st.session_state.prompt_exists:
-            generated_text = openai_query_image_url(
+            generated_text = openai_query_image(
                 image_url=st.session_state.uploaded_image,
                 query=st.session_state.qna["question"],
                 model=model
