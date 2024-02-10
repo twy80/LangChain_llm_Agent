@@ -4,7 +4,7 @@ ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
 
 import streamlit as st
 import openai
-import os, base64, requests, re
+import os, base64, re
 from io import BytesIO
 from tempfile import NamedTemporaryFile
 from audio_recorder_streamlit import audio_recorder
