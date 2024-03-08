@@ -528,6 +528,7 @@ def create_text(model):
 
     if st.session_state.ai_role[0] != st.session_state.ai_role[1]:
         reset_conversation()
+        st.rerun()
 
     if st.session_state.ai_role[0] == doc_analyzer:
         st.write("")
