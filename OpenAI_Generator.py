@@ -349,6 +349,24 @@ def read_audio(audio_bytes):
     return text
 
 
+def input_from_mic():
+    """
+    Convert audio input from mic to text and returns it.
+    If there is no audio input, None is returned.
+    """
+
+    audio_bytes = audio_recorder(
+        pause_threshold=3.0, text="Speak", icon_size="2x",
+        recording_color="#e87070", neutral_color="#6aa36f"        
+    )
+
+    if audio_bytes == st.session_state.audio_bytes or audio_bytes is None:
+        return None
+    else:
+        st.session_state.audio_bytes = audio_bytes
+        return read_audio(audio_bytes)
+
+
 def perform_tts(text):
     """
     This function takes text as input, performs text-to-speech (TTS),
@@ -468,10 +486,6 @@ def switch_between_apps():
     st.session_state.ai_role[1] = st.session_state.ai_role[0]
 
 
-def enable_user_input():
-    st.session_state.prompt_exists = True
-
-
 def reset_qna_image():
     st.session_state.uploaded_image = None
     st.session_state.qna = {"question": "", "answer": ""}
@@ -583,42 +597,35 @@ def create_text(model):
     # Reset the conversation
     st.button(label="Reset the conversation", on_click=reset_conversation)
 
+    audio_input = input_from_mic()
+    if audio_input is not None:
+        query = audio_input
+        st.session_state.prompt_exists = True
+        st.session_state.mic_used = True
+
     # Use your keyboard
-    user_input = st.chat_input(
+    text_input = st.chat_input(
         placeholder="Enter your query",
-        on_submit=enable_user_input,
         disabled=not uploaded_files if st.session_state.ai_role[0] == doc_analyzer else False
     )
-
-    # Use your microphone
-    audio_bytes = audio_recorder(
-        pause_threshold=3.0, text="Speak", icon_size="2x",
-        recording_color="#e87070", neutral_color="#6aa36f"        
-    )
-
-    if audio_bytes != st.session_state.audio_bytes:
-        user_prompt = read_audio(audio_bytes)
-        st.session_state.audio_bytes = audio_bytes
-        if user_prompt is not None:
-            st.session_state.prompt_exists = True
-            st.session_state.mic_used = True
-    elif user_input and st.session_state.prompt_exists:
-        user_prompt = user_input.strip()
+    if text_input:
+        query = text_input.strip()
+        st.session_state.prompt_exists = True
 
     if st.session_state.prompt_exists:
         with st.chat_message("human"):
-            st.write(user_prompt)
+            st.write(query)
 
         with st.chat_message("ai"):
             if st.session_state.ai_role[0] == doc_analyzer:
                 generated_text, st.session_state.sources = document_qna(
-                    user_prompt,
+                    query,
                     vector_store=st.session_state.vector_store,
                     model=model
                 )
             else:  # General chatting
                 generated_text = chat_complete(
-                    user_prompt,
+                    query,
                     temperature=st.session_state.temperature[0],
                     model=model
                 )
@@ -631,7 +638,7 @@ def create_text(model):
                 st.session_state.audio_response = perform_tts(generated_text)
 
             st.session_state.mic_used = False
-            st.session_state.human_enq.append(user_prompt)
+            st.session_state.human_enq.append(query)
             st.session_state.ai_resp.append(generated_text)
 
         st.session_state.prompt_exists = False
@@ -706,22 +713,17 @@ def create_text_with_image(model):
                 display_text_with_equations(st.session_state.qna["answer"])
 
         # Use your microphone
-        audio_bytes = audio_recorder(
-            pause_threshold=3.0, text="Speak", icon_size="2x",
-            recording_color="#e87070", neutral_color="#6aa36f"        
-        )
-        if audio_bytes != st.session_state.audio_bytes:
-            st.session_state.qna["question"] = read_audio(audio_bytes)
-            st.session_state.audio_bytes = audio_bytes
-            if st.session_state.qna["question"] is not None:
-                st.session_state.prompt_exists = True
+        audio_input = input_from_mic()
+        if audio_input is not None:
+            st.session_state.qna["question"] = audio_input
+            st.session_state.prompt_exists = True
 
         # Use your keyboard
-        query = st.chat_input(
+        text_input = st.chat_input(
             placeholder="Enter your query",
         )
-        if query:
-            st.session_state.qna["question"] = query
+        if text_input:
+            st.session_state.qna["question"] = text_input.strip()
             st.session_state.prompt_exists = True
 
         if st.session_state.prompt_exists:
@@ -763,22 +765,17 @@ def create_image(model):
         st.image(image=st.session_state.image_url, use_column_width=True)
     
     # Get an image description using the microphone
-    audio_bytes = audio_recorder(
-        pause_threshold=3.0, text="Speak", icon_size="2x",
-        recording_color="#e87070", neutral_color="#6aa36f"        
-    )
-    if audio_bytes != st.session_state.audio_bytes:
-        st.session_state.image_description = read_audio(audio_bytes)
-        st.session_state.audio_bytes = audio_bytes
-        if st.session_state.image_description is not None:
-            st.session_state.prompt_exists = True
+    audio_input = input_from_mic()
+    if audio_input is not None:
+        st.session_state.image_description = audio_input
+        st.session_state.prompt_exists = True
 
     # Get an image description using the keyboard
     text_input = st.chat_input(
         placeholder="Enter a description for your image",
     )
     if text_input:
-        st.session_state.image_description = text_input
+        st.session_state.image_description = text_input.strip()
         st.session_state.prompt_exists = True
 
     if st.session_state.prompt_exists:
