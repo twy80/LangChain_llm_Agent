@@ -818,8 +818,8 @@ def create_text_image():
             )
             authen = False if st.session_state.openai_api_key == "" else True
         else:
-            st.session_state.openai_api_key = st.secrets["openai_api_key"]
-            stored_pin = st.secrets["user_PIN"]
+            st.session_state.openai_api_key = st.secrets["OPENAI_API_KEY"]
+            stored_pin = st.secrets["USER_PIN"]
             st.write("**Password**")
             user_pin = st.text_input(
                 label="Enter password", type="password", label_visibility="collapsed"
