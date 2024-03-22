@@ -930,7 +930,7 @@ def create_text_image():
     "gpt-4-0125-preview", "gpt-4-vision-preview", or "dall-e-3",
     """
 
-    st.write("## 📚 LangChain Agent with Tools")
+    st.write("## 📚 LangChain OpenAI Agent")
 
     # Initialize all the session state variables
     initialize_session_state_variables()
