@@ -1,48 +1,52 @@
 """
-ChatGPT & DALL·E using openai API (by T.-W. Yoon, Aug. 2023)
+LangChain Agents (by T.-W. Yoon, Mar. 2024)
 """
 
 import streamlit as st
-import openai
-import os, base64, re
+import os, base64, re, requests, uuid, datetime
 from io import BytesIO
 from tempfile import NamedTemporaryFile
 from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
+from openai import OpenAI
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
-from langchain_openai import ChatOpenAI
-from langchain.schema import SystemMessage, HumanMessage  # AIMessage
-from langchain.callbacks.base import BaseCallbackHandler
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationalRetrievalChain
+from langchain.tools.retriever import create_retriever_tool
+from langchain.agents import create_openai_functions_agent
+from langchain.agents import AgentExecutor
+from langchain.agents import Tool
+from langchain_experimental.utilities import PythonREPL
 from langchain_community.callbacks import StreamlitCallbackHandler
+from tavily import TavilyClient
 
 
 def initialize_session_state_variables():
     """
-    This function initializes all the session state variables.
+    Initialize all the session state variables.
     """
 
     # variables for using OpenAI
-    if "openai_api_key" not in st.session_state:
-        st.session_state.openai_api_key = None
+    if "ready" not in st.session_state:
+        st.session_state.ready = False
 
     if "openai" not in st.session_state:
         st.session_state.openai = None
 
+    if "message_history" not in st.session_state:
+        st.session_state.message_history = ChatMessageHistory()
+
     # variables for chatbot
     if "ai_role" not in st.session_state:
         st.session_state.ai_role = 2 * ["You are a helpful assistant."]
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            SystemMessage(content=st.session_state.ai_role[0])
-        ]
 
     if "prompt_exists" not in st.session_state:
         st.session_state.prompt_exists = False
@@ -81,70 +85,146 @@ def initialize_session_state_variables():
     if "image_source" not in st.session_state:
         st.session_state.image_source = 2 * ["From URL"]
 
-    # variables for RAG
+    if "uploader_key" not in st.session_state:
+        st.session_state.uploader_key = 0
+
+    # variables for tools
+    if "tools" not in st.session_state:
+        st.session_state.tools = []
+
+    if "tavily_api_validity" not in st.session_state:
+        st.session_state.tavily_api_validity = False
+
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
 
-    if "sources" not in st.session_state:
-        st.session_state.sources = None
+    if "vector_store_message" not in st.session_state:
+        st.session_state.vector_store_message = None
 
-    if "memory" not in st.session_state:
-        st.session_state.memory = None
-
-
-# This is for streaming on Streamlit
-class StreamHandler(BaseCallbackHandler):
-    def __init__(self, container, initial_text=""):
-        self.container = container
-        self.text = initial_text
-
-    def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.text += token
-        self.container.markdown(self.text)
+    if "retriever_tool" not in st.session_state:
+        st.session_state.retriever_tool = None
 
 
-def chat_complete(user_prompt, model="gpt-3.5-turbo", temperature=0.7):
+def is_openai_api_key_valid(openai_api_key):
     """
-    This function generates text based on user input.
+    Return True if the given OpenAI API key is valid.
+    """
+
+    headers = {
+        "Authorization": f"Bearer {openai_api_key}",
+    }
+    response = requests.get(
+        "https://api.openai.com/v1/models", headers=headers
+    )
+
+    return response.status_code == 200
+
+
+def is_tavily_api_key_valid(tavily_api_key):
+    """
+    Return True if the given Tavily Search API key is valid.
+    """
+
+    try:
+        tavily = TavilyClient(api_key=tavily_api_key)
+        tavily.search(query="where can I get a Tavily search API key?")
+    except:
+        return False
+
+    return True
+
+
+def is_langchain_api_key_valid(langchain_api_key):
+    """
+    Return True if the given LangChain API key is valid.
+    """
+
+    run_id = str(uuid.uuid4())
+
+    response = requests.post(
+        "https://api.smith.langchain.com/runs",
+        json={
+            "id": run_id,
+            "name": "Test Run",
+            "run_type": "chain",
+            # "start_time": datetime.datetime.utcnow().isoformat(),
+            "inputs": {"text": "Foo"},
+        },
+        headers={"x-api-key": langchain_api_key},
+    )
+    requests.patch(
+        f"https://api.smith.langchain.com/runs/{run_id}",
+        json={
+            "outputs": {"my_output": "Bar"},
+            # "end_time": datetime.datetime.utcnow().isoformat(),
+        },
+        headers={"x-api-key": langchain_api_key},
+    )
+
+    return response.status_code == 202
+
+
+def check_api_keys():
+    # Unset this flag to check the validity of the OpenAI API key
+    st.session_state.ready = False
+
+
+def run_agent(query, model, tools=[], temperature=0.7):
+    """
+    Generate text based on user queries.
 
     Args:
-        user_prompt (string): User input
+        query (string): User's query
+        model (string): LLM like "gpt-3.5-turbo"
+        tools (list): sublist of [tavily_search, retrieval, python_repl]
         temperature (float): Value between 0 and 1. Defaults to 0.7
-        model (string): "gpt-3.5-turbo" or "gpt-4".
 
     Return:
         generated text
 
-    All the conversations are stored in st.session_state variables.
+    The chat prompt and message history are stored in
+    st.session_state variables.
     """
 
-    openai_llm = ChatOpenAI(
-        openai_api_key=st.session_state.openai_api_key,
+    llm = ChatOpenAI(
         temperature=temperature,
         model_name=model,
         streaming=True,
-        callbacks=[StreamHandler(st.empty())]
+        callbacks=[StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)]
     )
+    if tools:
+        agent = create_openai_functions_agent(
+            llm, tools, st.session_state.agent_prompt
+        )
+        agent_executor = AgentExecutor(
+            agent=agent, tools=tools, max_iterations=5, verbose=False,
+            agent_executor_kwargs={"handle_parsing_errors": True},
+        )
+    else:
+        agent_executor = st.session_state.chat_prompt | llm
 
-    # Add the user input to the messages
-    st.session_state.messages.append(HumanMessage(content=user_prompt))
+    agent_with_chat_history = RunnableWithMessageHistory(
+        agent_executor,
+        lambda session_id: st.session_state.message_history,
+        input_messages_key="input",
+        history_messages_key="chat_history",
+    )
     try:
-        response = openai_llm.invoke(st.session_state.messages)
-        generated_text = response.content
+        response = agent_with_chat_history.invoke(
+            {"input": query},
+            config={"configurable": {"session_id": "chat"}},
+        )
+        generated_text = response['output'] if tools else response.content
     except Exception as e:
         generated_text = None
         st.error(f"An error occurred: {e}", icon="🚨")
-
-    if generated_text is not None:
-        # Add the generated output to the messages
-        st.session_state.messages.append(response)
 
     return generated_text
 
 
 def openai_create_image(description, model="dall-e-3", size="1024x1024"):
     """
-    This function generates image based on user description.
+    Generate image based on user description.
 
     Args:
         description (string): User description
@@ -174,7 +254,7 @@ def openai_create_image(description, model="dall-e-3", size="1024x1024"):
 
 def openai_query_image(image_url, query, model="gpt-4-vision-preview"):
     """
-    This function answers the user's query about the given image from a URL.
+    Answer the user's query about the given image from a URL.
 
     Args:
         image_url (string): URL of the image
@@ -213,8 +293,8 @@ def openai_query_image(image_url, query, model="gpt-4-vision-preview"):
 
 def get_vector_store(uploaded_files):
     """
-    This function takes a list of UploadedFile objects as input,
-    and returns a FAISS vector store.
+    Take a list of UploadedFile objects as input,
+    and return a FAISS vector store.
     """
 
     if not uploaded_files:
@@ -257,9 +337,7 @@ def get_vector_store(uploaded_files):
             )
             doc = text_splitter.split_documents(documents)
             # Create a FAISS vector database.
-            embeddings = OpenAIEmbeddings(
-                openai_api_key=st.session_state.openai_api_key
-            )
+            embeddings = OpenAIEmbeddings()
             vector_store = FAISS.from_documents(doc, embeddings)
     except Exception as e:
         vector_store = None
@@ -273,50 +351,48 @@ def get_vector_store(uploaded_files):
     return vector_store
 
 
-def document_qna(query, vector_store, model="gpt-3.5-turbo"):
+def get_retriever():
     """
-    This function takes a user prompt, a vector store and a GPT model,
-    and returns a response on the uploaded document along with sources.
+    Upload document(s), create a vector store, and return a retriever tool.
     """
 
-    if vector_store is not None:
-        if st.session_state.memory is None:
-            st.session_state.memory = ConversationBufferMemory(
-                memory_key="chat_history",
-                return_messages=True,
-                output_key="answer"
+    st.write("")
+    st.write("##### Document(s) to ask about")
+    uploaded_files = st.file_uploader(
+        label="Upload an article",
+        type=["txt", "pdf", "docx"],
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+        key="upload" + str(st.session_state.uploader_key),
+    )
+
+    if st.button(label="Create the vector store"):
+        # Create the vector store.
+        st.session_state.vector_store = get_vector_store(uploaded_files)
+
+        if st.session_state.vector_store is not None:
+            uploaded_file_names = [file.name for file in uploaded_files]
+            file_names = ", ".join(uploaded_file_names)
+            st.session_state.vector_store_message = (
+                f"Vector store for :blue[[{file_names}]] is ready!"
             )
-
-        openai_llm = ChatOpenAI(
-            openai_api_key=st.session_state.openai_api_key,
-            temperature=0,
-            model_name=model,
-            streaming=True,
-            callbacks=[StreamlitCallbackHandler(st.empty())]
-        )
-        conversation_chain = ConversationalRetrievalChain.from_llm(
-            llm=openai_llm,
-            chain_type="stuff",
-            retriever=vector_store.as_retriever(),
-            # retriever=vector_store.as_retriever(search_type="mmr"),
-            memory=st.session_state.memory,
-            return_source_documents=True
-        )
-
-        try:
-            # response to the query is given in the form
-            # {"question": ..., "chat_history": [...], "answer": ...}.
-            response = conversation_chain.invoke({"question": query})
-            generated_text = response["answer"]
-            source_documents = response["source_documents"]
-
-        except Exception as e:
-            generated_text, source_documents = None, None
-            st.error(f"An error occurred: {e}", icon="🚨")
+            retriever = st.session_state.vector_store.as_retriever()
+            retriever_tool = create_retriever_tool(
+                retriever,
+                name="retriever",
+                description=(
+                    "Search for information about the uploaded documents. "
+                    "For any questions about the documents, you must use "
+                    "this tool!"
+                ),
+            )
+            st.session_state.uploader_key += 1
+            return retriever_tool
+        else:
+            return None
     else:
-        generated_text, source_documents = None, None
-
-    return generated_text, source_documents
+        # Return the retriever_tool already prepared
+        return st.session_state.retriever_tool
 
 
 def display_text_with_equations(text):
@@ -332,7 +408,7 @@ def display_text_with_equations(text):
 
 def read_audio(audio_bytes):
     """
-    This function reads audio bytes and returns the corresponding text.
+    Read audio bytes and return the corresponding text.
     """
     try:
         audio_data = BytesIO(audio_bytes)
@@ -351,7 +427,7 @@ def read_audio(audio_bytes):
 
 def input_from_mic():
     """
-    Convert audio input from mic to text and returns it.
+    Convert audio input from mic to text and return it.
     If there is no audio input, None is returned.
     """
 
@@ -369,8 +445,8 @@ def input_from_mic():
 
 def perform_tts(text):
     """
-    This function takes text as input, performs text-to-speech (TTS),
-    and returns an audio_response.
+    Take text as input, perform text-to-speech (TTS),
+    and return an audio_response.
     """
 
     try:
@@ -389,8 +465,8 @@ def perform_tts(text):
 
 def play_audio(audio_response):
     """
-    This function takes an audio response (a bytes-like object)
-    from TTS as input, and plays the audio.
+    Take an audio response (a bytes-like object)
+    from TTS as input, and play the audio.
     """
 
     audio_data = audio_response.read()
@@ -412,9 +488,8 @@ def play_audio(audio_response):
 
 def image_to_base64(image):
     """
-    This function converts an image object from PIL to a base64
-    encoded image, and returns the resulting encoded image
-    in the form of a URL.
+    Convert an image object from PIL to a base64 encoded image,
+    and return the resulting encoded image in the form of a URL.
     """
 
     # Convert the image to RGB mode if necessary
@@ -436,7 +511,7 @@ def image_to_base64(image):
 
 def shorten_image(image, max_pixels=1024):
     """
-    This function takes an Image object as input, and shortens the image size
+    Take an Image object as input, and shorten the image size
     if the image is greater than max_pixels x max_pixels.
     """
 
@@ -453,7 +528,7 @@ def shorten_image(image, max_pixels=1024):
 
 def is_url(text):
     """
-    This function determines whether text is a URL or not.
+    Determine whether text is a URL or not.
     """
 
     regex = r"(http|https)://([\w_-]+(?:\.[\w_-]+)+)(:\S*)?"
@@ -466,9 +541,7 @@ def is_url(text):
 
 
 def reset_conversation():
-    st.session_state.messages = [
-        SystemMessage(content=st.session_state.ai_role[0])
-    ]
+    st.session_state.message_history.clear()
     st.session_state.ai_role[1] = st.session_state.ai_role[0]
     st.session_state.prompt_exists = False
     st.session_state.human_enq = []
@@ -476,8 +549,9 @@ def reset_conversation():
     st.session_state.temperature[1] = st.session_state.temperature[0]
     st.session_state.audio_response = None
     st.session_state.vector_store = None
-    st.session_state.sources = None
-    st.session_state.memory = None
+    st.session_state.vector_store_message = None
+    st.session_state.tools = []
+    st.session_state.retriever_tool = None
 
 
 def switch_between_apps():
@@ -493,19 +567,28 @@ def reset_qna_image():
 
 def create_text(model):
     """
-    This function generates text based on user input
-    by calling chat_complete().
-
-    model is set to "gpt-3.5-turbo" or "gpt-4".
+    Take an LLM as input and generate text based on user input
+    by calling run_agent().
     """
 
     # initial system prompts
     general_role = "You are a helpful assistant."
-    english_teacher = "You are an English teacher who analyzes texts and corrects any grammatical issues if necessary."
-    translator = "You are a translator who translates English into Korean and Korean into English."
-    coding_adviser = "You are an expert in coding who provides advice on good coding styles."
-    doc_analyzer = "You are an assistant analyzing the document(s) uploaded."
-    roles = (general_role, english_teacher, translator, coding_adviser, doc_analyzer)
+    english_teacher = (
+        "You are an English teacher who analyzes texts and corrects "
+        "any grammatical issues if necessary."
+    )
+    translator = (
+        "You are a translator who translates English into Korean "
+        "and Korean into English."
+    )
+    coding_adviser = (
+        "You are an expert in coding who provides advice on "
+        "good coding styles."
+    )
+    math_assistant = "You are a math assistant."
+    roles = (
+        general_role, english_teacher, translator, coding_adviser, math_assistant
+    )
 
     with st.sidebar:
         st.write("")
@@ -536,7 +619,6 @@ def create_text(model):
         label="AI's role",
         options=roles,
         index=roles.index(st.session_state.ai_role[1]),
-        # on_change=reset_conversation,
         label_visibility="collapsed",
     )
 
@@ -544,27 +626,103 @@ def create_text(model):
         reset_conversation()
         st.rerun()
 
-    if st.session_state.ai_role[0] == doc_analyzer:
-        st.write("")
-        left, right = st.columns([4, 7])
-        left.write("##### Document(s) to ask about")
-        right.write("Temperature is set to 0.")
-        uploaded_files = st.file_uploader(
-            label="Upload an article",
-            type=["txt", "pdf", "docx"],
-            accept_multiple_files=True,
-            on_change=reset_conversation,
-            label_visibility="collapsed",
-        )
-        button = "Create the vector store"
-        if st.button(label=button) and st.session_state.vector_store is None:
-            # Create the vector store.
-            st.session_state.vector_store = get_vector_store(uploaded_files)
+    st.write("")
+    st.write("**Tools**")
+    tool_options = ["tavily_search", "python_repl", "retrieval"]
+    selected_tools = st.multiselect(
+        label="assistant tools",
+        options=tool_options,
+        default=st.session_state.tools,
+        label_visibility="collapsed",
+    )
+    if selected_tools != st.session_state.tools:
+        st.session_state.tools = selected_tools
+        st.rerun()
 
-            if st.session_state.vector_store is not None:
-                uploaded_file_names = [file.name for file in uploaded_files]
-                file_names = ", ".join(uploaded_file_names)
-                st.write(f"Vector store for :blue[[{file_names}]] is ready!")
+    if st.session_state.tavily_api_validity:
+        tavily_search = Tool(
+            name="tavily_search",
+            description=(
+                "You must use this function to search for "
+                "information on the internet."
+            ),
+            func=TavilySearchResults(),
+        )
+    else:
+        tavily_search = None
+
+    python_repl = Tool(
+        name="python_repl",
+        description=(
+            "A Python shell. Use this to execute python commands. "
+            "Input should be a valid python command. If you want "
+            "to see the output of a value, you should print it out "
+            "with `print(...)`."
+        ),
+        func=PythonREPL().run,
+    )
+    if "python_repl" in selected_tools:
+        st.write(
+            "<small>PythonREPL from LangChain is still experimental, "
+            "and therefore may lead to wrong results. "
+            "Use with caution.</small>",
+            unsafe_allow_html=True,
+        )
+
+    if "retrieval" in selected_tools:
+        st.session_state.retriever_tool = get_retriever()
+        if st.session_state.vector_store_message:
+            st.write(st.session_state.vector_store_message)
+
+    # Tools to be used with the llm
+    tool_dictionary = {
+        "tavily_search": tavily_search,
+        "python_repl": python_repl,
+        "retrieval": st.session_state.retriever_tool
+    }
+    tools = []
+    for tool_name in selected_tools:
+        tool = tool_dictionary[tool_name]
+        if tool is not None:
+            tools.append(tool)
+
+    # Prompts for the agents
+    st.session_state.chat_prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            f"{st.session_state.ai_role[0]} Your goal is to provide answers "
+            "to human inquiries. Should the information not be available, "
+            "please inform the human explicitly that the answer could "
+            "not be found."
+        ),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{input}"),
+    ])
+    st.session_state.agent_prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            f"{st.session_state.ai_role[0]} Your goal is to provide answers "
+            "to human inquiries. You must inform the human of the basis of "
+            "your answers, i.e., whether your answers are based on search "
+            "results from the internet (if 'tavily_search' is used), "
+            "information from the uploaded documents (if 'retriever' is "
+            "used), or your general knowledge. Use markdown syntax and "
+            "include relevant sources, like URLs, following MLA format. "
+            "Should the information not be available through internet "
+            "searches, the uploaded documents, or your general knowledge, "
+            "please inform the human explicitly that the answer could "
+            "not be found. Also if you use 'python_repl' to perform "
+            "computation, show the Python code that you run. When showing "
+            "the Python code, encapsulate the code in Markdown format, "
+            "e.g.,\n\n"
+            "```python\n"
+            "....\n"
+            "```"
+        ),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{input}"),
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ])
 
     st.write("")
     left, right = st.columns([4, 7])
@@ -577,17 +735,6 @@ def create_text(model):
             st.write(human)
         with st.chat_message("ai"):
             display_text_with_equations(ai)
-
-    if st.session_state.ai_role[0] == doc_analyzer and st.session_state.sources is not None:
-        with st.expander("Sources"):
-            c1, c2, _ = st.columns(3)
-            c1.write("Uploaded document(s):")
-            columns = c2.columns(len(st.session_state.sources))
-            for index, column in enumerate(columns):
-                column.markdown(
-                    f"{index + 1}\)",
-                    help=st.session_state.sources[index].page_content
-                )
 
     # Play TTS
     if st.session_state.audio_response is not None:
@@ -604,10 +751,8 @@ def create_text(model):
         st.session_state.mic_used = True
 
     # Use your keyboard
-    text_input = st.chat_input(
-        placeholder="Enter your query",
-        disabled=not uploaded_files if st.session_state.ai_role[0] == doc_analyzer else False
-    )
+    text_input = st.chat_input(placeholder="Enter your query")
+
     if text_input:
         query = text_input.strip()
         st.session_state.prompt_exists = True
@@ -617,18 +762,12 @@ def create_text(model):
             st.write(query)
 
         with st.chat_message("ai"):
-            if st.session_state.ai_role[0] == doc_analyzer:
-                generated_text, st.session_state.sources = document_qna(
-                    query,
-                    vector_store=st.session_state.vector_store,
-                    model=model
-                )
-            else:  # General chatting
-                generated_text = chat_complete(
-                    query,
-                    temperature=st.session_state.temperature[0],
-                    model=model
-                )
+            generated_text = run_agent(
+                query,
+                model,
+                tools=tools,
+                temperature=st.session_state.temperature[0],
+            )
 
         if generated_text is not None:
             # TTS under two conditions
@@ -649,8 +788,7 @@ def create_text(model):
 
 def create_text_with_image(model):
     """
-    This function responds to the user's query about the image
-    from a URL or uploaded image.
+    Respond to the user's query about the image from a URL or uploaded image.
     """
 
     with st.sidebar:
@@ -741,8 +879,7 @@ def create_text_with_image(model):
 
 def create_image(model):
     """
-    This function generates image based on user description
-    by calling openai_create_image().
+    Generate image based on user description by calling openai_create_image().
     """
 
     # Set the image size
@@ -789,11 +926,11 @@ def create_image(model):
 
 def create_text_image():
     """
-    This main function generates text or image by calling
-    openai_create_text() or openai_create_image(), respectively.
+    Generate text or image by using llm models "gpt-3.5-turbo-0125",
+    "gpt-4-0125-preview", "gpt-4-vision-preview", or "dall-e-3",
     """
 
-    st.write("## 📚 ChatGPT (RAG)$\,$ &$\,$ DALL·E")
+    st.write("## 📚 LangChain Agent with Tools")
 
     # Initialize all the session state variables
     initialize_session_state_variables()
@@ -803,67 +940,111 @@ def create_text_image():
         st.write("**API Key Selection**")
         choice_api = st.sidebar.radio(
             label="$\\hspace{0.25em}\\texttt{Choice of API}$",
-            options=("Your key", "My key"),
+            options=("Your keys", "My keys"),
             label_visibility="collapsed",
             horizontal=True,
         )
 
-        if choice_api == "Your key":
-            st.write("**Your API Key**")
-            st.session_state.openai_api_key = st.text_input(
-                label="$\\hspace{0.25em}\\texttt{Your OpenAI API Key}$",
+        if choice_api == "Your keys":
+            st.write("**OpenAI API Key**")
+            openai_api_key = st.text_input(
+                label="$\\textsf{Your OPenAI API Key}$",
                 type="password",
                 placeholder="sk-",
+                on_change=check_api_keys,
                 label_visibility="collapsed",
             )
-            authen = False if st.session_state.openai_api_key == "" else True
+            st.write("**Tavily Search API Key**")
+            tavily_api_key = st.text_input(
+                label="$\\textsf{Your Tavily API Key}$",
+                type="password",
+                placeholder="tvly-",
+                on_change=check_api_keys,
+                label_visibility="collapsed",
+            )
+            st.write("**LangChain API Key**")
+            langchain_api_key = st.text_input(
+                label="$\\textsf{Your LangChain API Key}$",
+                type="password",
+                placeholder="ls__",
+                on_change=check_api_keys,
+                label_visibility="collapsed",
+            )
+            authentication = True
         else:
-            st.session_state.openai_api_key = st.secrets["OPENAI_API_KEY"]
+            openai_api_key = st.secrets["OPENAI_API_KEY"]
+            tavily_api_key = st.secrets["TAVILY_API_KEY"]
+            langchain_api_key = st.secrets["LANGCHAIN_API_KEY"]
             stored_pin = st.secrets["USER_PIN"]
             st.write("**Password**")
             user_pin = st.text_input(
                 label="Enter password", type="password", label_visibility="collapsed"
             )
-            authen = user_pin == stored_pin
+            authentication = user_pin == stored_pin
 
-        st.session_state.openai = openai.OpenAI(
-            api_key=st.session_state.openai_api_key
-        )
+    if authentication:
+        if not st.session_state.ready:
+            if is_openai_api_key_valid(openai_api_key):
+                os.environ["OPENAI_API_KEY"] = openai_api_key
+                st.session_state.openai = OpenAI()
+                st.session_state.ready = True
 
+                if is_tavily_api_key_valid(tavily_api_key):
+                    os.environ["TAVILY_API_KEY"] = tavily_api_key
+                    st.session_state.tavily_api_validity = True
+                else:
+                    st.session_state.tavily_api_validity = False
+
+                if choice_api == "My keys" or is_langchain_api_key_valid(langchain_api_key):
+                    os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
+                    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+                    # os.environ["LANGCHAIN_TRACING_V2"] = "false"
+                    current_date = datetime.datetime.now().date()
+                    date_string = str(current_date)
+                    os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
+                else:
+                    os.environ["LANGCHAIN_TRACING_V2"] = "false"
+            else:
+                st.info(
+                    """
+                    **Enter your OpenAI, Tavily Search, and LangChain API keys
+                    in the sidebar**
+
+                    Get an OpenAI API key [here](https://platform.openai.com/api-keys),
+                    a Tavily Search API key [here](https://app.tavily.com/), and
+                    a LangChain API key [here](https://smith.langchain.com/settings)
+                    for tracing LLM messages. If you do not want to use any search
+                    tool, there is no need to enter your Tavily Search API key.
+                    Likewise, your LangChain API key is not needed if you are not
+                    tracing LLM messages.
+                    """
+                )
+                st.stop()
+    else:
+        st.info("**Enter the correct password in the sidebar**")
+        st.stop()
+
+    with st.sidebar:
         st.write("")
-        st.write("**What to Generate**")
-        option = st.radio(
-            label="$\\hspace{0.25em}\\texttt{What to generate}$",
+        st.write("**Models**")
+        model = st.radio(
+            label="$\\textsf{Models}$",
             options=(
-                "Text (GPT 3.5)", "Text (GPT 4)",
-                "Text with Image", "Image (DALL·E 3)"
+                "gpt-3.5-turbo-0125",
+                "gpt-4-0125-preview",
+                "gpt-4-vision-preview",
+                "dall-e-3",
             ),
             label_visibility="collapsed",
-            # horizontal=True,
             on_change=switch_between_apps,
         )
 
-    if authen:
-        if option == "Text (GPT 3.5)":
-            create_text("gpt-3.5-turbo-0125")
-        elif option == "Text (GPT 4)":
-            create_text("gpt-4-0125-preview")
-        elif option == "Text with Image":
-            create_text_with_image("gpt-4-vision-preview")
-        else:
-            create_image("dall-e-3")
+    if model in ("gpt-3.5-turbo-0125", "gpt-4-0125-preview"):
+        create_text(model)
+    elif model == "gpt-4-vision-preview":
+        create_text_with_image(model)
     else:
-        st.write("")
-        if choice_api == "Your key":
-            st.info(
-                """
-                **Enter your OpenAI API key in the sidebar**
-
-                Get an OpenAI API key [here](https://platform.openai.com/api-keys).
-                """
-            )
-        else:
-            st.info("**Enter the correct password in the sidebar**")
+        create_image(model)
 
     with st.sidebar:
         st.write("---")
