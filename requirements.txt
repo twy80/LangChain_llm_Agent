@@ -4,7 +4,10 @@ audio-recorder-streamlit
 pillow
 langchain
 langchain-openai
+langchain-experimental
+langsmith
 pypdf
 docx2txt
 faiss-cpu
 tiktoken
+tavily-python

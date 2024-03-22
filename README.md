@@ -1,4 +1,4 @@
-# [ChatGPT & DALL·E](https://chatgpt-dalle.streamlit.app/)
+# [LangChain_OpenAI_Agent](https://chatgpt-dalle.streamlit.app/)
 
 * This app generates text and images using OpenAI's APIs
   
@@ -25,6 +25,6 @@
 
 ## Usage
 ```python
-streamlit run OpenAI_Generator.py
+streamlit run LangChain_OpenAI_Agent.py
 ```
 [![Exploring the App: A Visual Guide](files/Streamlit_LLM_App.png)](https://youtu.be/GOnGXtYIX0Q)
