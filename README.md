@@ -11,7 +11,7 @@
 
   - Temperature can be set by the user
 
-  - voice recognition and Text-To-Speech (TTS) functionalities are supported.
+  - Voice recognition and Text-To-Speech (TTS) functionalities are supported.
 
   - Recording of the user's voice is stopped when there is no input for 3 seconds.
   
