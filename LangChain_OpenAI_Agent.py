@@ -11,6 +11,7 @@ from PIL import Image, UnidentifiedImageError
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.schema import HumanMessage, AIMessage, SystemMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.tools.tavily_search import TavilySearchResults
@@ -50,12 +51,6 @@ def initialize_session_state_variables():
 
     if "prompt_exists" not in st.session_state:
         st.session_state.prompt_exists = False
-
-    if "human_enq" not in st.session_state:
-        st.session_state.human_enq = []
-
-    if "ai_resp" not in st.session_state:
-        st.session_state.ai_resp = []
 
     if "temperature" not in st.session_state:
         st.session_state.temperature = [0.7, 0.7]
@@ -664,7 +659,7 @@ def create_text(model):
     if "python_repl" in selected_tools:
         st.write(
             "<small>PythonREPL from LangChain is still experimental, "
-            "and therefore may lead to wrong results. "
+            "and therefore may lead to incorrect results. "
             "Use with caution.</small>",
             unsafe_allow_html=True,
         )
@@ -730,11 +725,13 @@ def create_text(model):
     right.write("Click on the mic icon and speak, or type text below.")
 
     # Print conversations
-    for human, ai in zip(st.session_state.human_enq, st.session_state.ai_resp):
-        with st.chat_message("human"):
-            st.write(human)
-        with st.chat_message("ai"):
-            display_text_with_equations(ai)
+    for message in st.session_state.message_history.messages:
+        if isinstance(message, HumanMessage):
+            with st.chat_message("human"):
+                st.write(message.content)
+        else:
+            with st.chat_message("ai"):
+                display_text_with_equations(message.content)
 
     # Play TTS
     if st.session_state.audio_response is not None:
@@ -775,10 +772,7 @@ def create_text(model):
             cond2 = st.session_state.tts == "Auto" and st.session_state.mic_used
             if cond1 or cond2:
                 st.session_state.audio_response = perform_tts(generated_text)
-
             st.session_state.mic_used = False
-            st.session_state.human_enq.append(query)
-            st.session_state.ai_resp.append(generated_text)
 
         st.session_state.prompt_exists = False
 
@@ -1012,11 +1006,13 @@ def create_text_image():
 
                     Get an OpenAI API key [here](https://platform.openai.com/api-keys),
                     a Tavily Search API key [here](https://app.tavily.com/), and
-                    a LangChain API key [here](https://smith.langchain.com/settings)
-                    for tracing LLM messages. If you do not want to use any search
-                    tool, there is no need to enter your Tavily Search API key.
-                    Likewise, your LangChain API key is not needed if you are not
-                    tracing LLM messages.
+                    a LangChain API key [here](https://smith.langchain.com/settings).
+                    Your LangChain API key is used to trace LLM messages at
+                    https://smith.langchain.com.
+                    
+                    If you do not want to use any search tool, there is no need
+                    to enter your Tavily Search API key. Likewise, your LangChain API
+                    key is not needed if you are not tracing LLM messages.
                     """
                 )
                 st.stop()
