@@ -30,4 +30,4 @@
 ```python
 streamlit run LangChain_OpenAI_Agent.py
 ```
-[![Exploring the App: A Visual Guide](files/Streamlit_Agent_App)](https://youtu.be/ux7ux8YXnMI)
+[![Exploring the App: A Visual Guide](files/Streamlit_Agent_App.png)](https://youtu.be/ux7ux8YXnMI)
