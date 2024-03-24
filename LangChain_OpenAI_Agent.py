@@ -605,7 +605,15 @@ def create_text(model):
             format="%.1f",
             label_visibility="collapsed",
         )
-        st.write("(Higher $\Rightarrow$ More random)")
+        st.write("")
+        st.write("**Messages to Show**")
+        no_of_msgs = st.radio(
+            label="$\\textsf{Messages to show}$",
+            options=("All", 20, 10),
+            label_visibility="collapsed",
+            horizontal=True,
+            index=2,
+        )
 
     st.write("")
     st.write("##### Message to AI")
@@ -708,7 +716,11 @@ def create_text(model):
     right.write("Click on the mic icon and speak, or type text below.")
 
     # Print conversations
-    for message in st.session_state.message_history.messages:
+    if no_of_msgs == "All":
+        message_history = st.session_state.message_history.messages
+    else:
+        message_history = st.session_state.message_history.messages[-no_of_msgs:]
+    for message in message_history:
         if isinstance(message, HumanMessage):
             with st.chat_message("human"):
                 st.write(message.content)
