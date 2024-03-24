@@ -24,8 +24,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.tools.retriever import create_retriever_tool
 from langchain.agents import create_openai_functions_agent
 from langchain.agents import AgentExecutor
-from langchain.agents import Tool
-from langchain_experimental.utilities import PythonREPL
+from langchain_experimental.tools import PythonREPLTool
 from langchain_community.callbacks import StreamlitCallbackHandler
 from tavily import TavilyClient
 
@@ -635,27 +634,11 @@ def create_text(model):
         st.rerun()
 
     if st.session_state.tavily_api_validity:
-        tavily_search = Tool(
-            name="tavily_search",
-            description=(
-                "You must use this function to search for "
-                "information on the internet."
-            ),
-            func=TavilySearchResults(),
-        )
+        tavily_search = TavilySearchResults()
     else:
         tavily_search = None
 
-    python_repl = Tool(
-        name="python_repl",
-        description=(
-            "A Python shell. Use this to execute python commands. "
-            "Input should be a valid python command. If you want "
-            "to see the output of a value, you should print it out "
-            "with `print(...)`."
-        ),
-        func=PythonREPL().run,
-    )
+    python_repl = PythonREPLTool()
     if "python_repl" in selected_tools:
         st.write(
             "<small>PythonREPL from LangChain is still experimental, "
