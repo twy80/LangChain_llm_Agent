@@ -717,10 +717,8 @@ def create_text(model):
 
     # Print conversations
     if no_of_msgs == "All":
-        message_history = st.session_state.message_history.messages
-    else:
-        message_history = st.session_state.message_history.messages[-no_of_msgs:]
-    for message in message_history:
+        no_of_msgs = len(st.session_state.message_history.messages)
+    for message in st.session_state.message_history.messages[-no_of_msgs:]:
         if isinstance(message, HumanMessage):
             with st.chat_message("human"):
                 st.write(message.content)
