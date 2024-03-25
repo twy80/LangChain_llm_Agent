@@ -1008,6 +1008,15 @@ def create_text_image():
                     key is not needed if you are not tracing LLM messages.
                     """
                 )
+                st.info(
+                    """
+                    This app is coded by T.-W. Yoon, a professor of systems theory at
+                    Korea University. Take a look at some of his other projects:
+                    - [OpenAI Assistants](https://assistants.streamlit.app/)
+                    - [TWY's Playground](https://twy-playground.streamlit.app/)
+                    - [Differential equations](https://diff-eqn.streamlit.app/)
+                    """
+                )
                 st.stop()
     else:
         st.info("**Enter the correct password in the sidebar**")
