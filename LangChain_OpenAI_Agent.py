@@ -4,7 +4,8 @@ LangChain Agents (by T.-W. Yoon, Mar. 2024)
 
 import streamlit as st
 import os, base64, re, requests, uuid, datetime
-from io import BytesIO
+from io import BytesIO, StringIO
+from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
 from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
@@ -559,6 +560,20 @@ def reset_qna_image():
     st.session_state.qna = {"question": "", "answer": ""}
 
 
+def prepare_download():
+    """
+    Return conversation as a series of strings to be downloaded.
+    """
+
+    output = StringIO()
+    with redirect_stdout(output):
+        print(st.session_state.message_history)
+    output_str = output.getvalue()
+    download_data = "\n\n".join(output_str.splitlines())
+
+    return download_data
+
+
 def create_text(model):
     """
     Take an LLM as input and generate text based on user input
@@ -731,8 +746,19 @@ def create_text(model):
         play_audio(st.session_state.audio_response)
         st.session_state.audio_response = None
 
-    # Reset the conversation
-    st.button(label="Reset the conversation", on_click=reset_conversation)
+    # Reset or download the conversation
+    left, right = st.columns([4, 7])
+    download_data = prepare_download()
+    left.button(
+        label="$~\:\,\,$Reset the conversation$~\:\,\,$",
+        on_click=reset_conversation
+    )
+    right.download_button(
+        label="Download the conversation",
+        data=download_data,
+        file_name="conversations.txt",
+        mime="text/plain"
+    )
 
     audio_input = input_from_mic()
     if audio_input is not None:
