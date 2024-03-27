@@ -750,11 +750,11 @@ def create_text(model):
     left, right = st.columns([4, 7])
     download_data = prepare_download()
     left.button(
-        label="$~\:\,\,$Reset the conversation$~\:\,\,$",
+        label="$~\:\,\,$Reset$~\:\,\,$",
         on_click=reset_conversation
     )
     right.download_button(
-        label="Download the conversation",
+        label="Download",
         data=download_data,
         file_name="conversations.txt",
         mime="text/plain"
