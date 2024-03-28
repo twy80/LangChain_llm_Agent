@@ -3,7 +3,7 @@ LangChain Agents (by T.-W. Yoon, Mar. 2024)
 """
 
 import streamlit as st
-import os, base64, re, requests, uuid, datetime
+import os, base64, re, requests, uuid, datetime, time
 from io import BytesIO, StringIO
 from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
@@ -426,6 +426,7 @@ def input_from_mic():
     If there is no audio input, None is returned.
     """
 
+    time.sleep(0.5)
     audio_bytes = audio_recorder(
         pause_threshold=3.0, text="Speak", icon_size="2x",
         recording_color="#e87070", neutral_color="#6aa36f"        
