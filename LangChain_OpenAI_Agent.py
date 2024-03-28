@@ -426,7 +426,7 @@ def input_from_mic():
     If there is no audio input, None is returned.
     """
 
-    time.sleep(0.1)
+    time.sleep(0.2)
     audio_bytes = audio_recorder(
         pause_threshold=3.0, text="Speak", icon_size="2x",
         recording_color="#e87070", neutral_color="#6aa36f"        
