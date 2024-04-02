@@ -666,8 +666,8 @@ def create_text(model):
     if "python_repl" in selected_tools:
         st.write(
             "<small>PythonREPL from LangChain is still experimental, "
-            "and therefore may lead to incorrect results. "
-            "Use with caution.</small>",
+            "and therefore caution is needed. Users are also advised "
+            "to choose gpt-4 with Python REPL."</small>",
             unsafe_allow_html=True,
         )
 
