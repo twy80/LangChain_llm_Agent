@@ -26,7 +26,7 @@ from langchain.tools.retriever import create_retriever_tool
 from langchain.agents import create_openai_tools_agent
 from langchain.agents import AgentExecutor
 from langchain_experimental.tools import PythonREPLTool
-from langchain_community.callbacks import StreamlitCallbackHandler
+from langchain.callbacks.base import BaseCallbackHandler
 from tavily import TavilyClient
 
 
@@ -98,6 +98,17 @@ def initialize_session_state_variables():
 
     if "retriever_tool" not in st.session_state:
         st.session_state.retriever_tool = None
+
+
+# This is for streaming on Streamlit
+class StreamHandler(BaseCallbackHandler):
+    def __init__(self, container, initial_text=""):
+        self.container = container
+        self.text = initial_text
+
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        self.text += token
+        self.container.markdown(self.text)
 
 
 def is_openai_api_key_valid(openai_api_key):
@@ -185,7 +196,7 @@ def run_agent(query, model, tools=[], temperature=0.7):
         temperature=temperature,
         model_name=model,
         streaming=True,
-        callbacks=[StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)]
+        callbacks=[StreamHandler(st.empty())]
     )
     if tools:
         agent = create_openai_tools_agent(
