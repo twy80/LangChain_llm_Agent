@@ -23,7 +23,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain.tools.retriever import create_retriever_tool
-from langchain.agents import create_openai_functions_agent
+from langchain.agents import create_openai_tools_agent
 from langchain.agents import AgentExecutor
 from langchain_experimental.tools import PythonREPLTool
 from langchain_community.callbacks import StreamlitCallbackHandler
@@ -188,7 +188,7 @@ def run_agent(query, model, tools=[], temperature=0.7):
         callbacks=[StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)]
     )
     if tools:
-        agent = create_openai_functions_agent(
+        agent = create_openai_tools_agent(
             llm, tools, st.session_state.agent_prompt
         )
         agent_executor = AgentExecutor(
@@ -209,7 +209,7 @@ def run_agent(query, model, tools=[], temperature=0.7):
             {"input": query},
             config={"configurable": {"session_id": "chat"}},
         )
-        generated_text = response['output'] if tools else response.content
+        generated_text = response["output"] if tools else response.content
     except Exception as e:
         generated_text = None
         st.error(f"An error occurred: {e}", icon="🚨")
