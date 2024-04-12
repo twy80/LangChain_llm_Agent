@@ -90,6 +90,9 @@ def initialize_session_state_variables():
     if "tavily_api_validity" not in st.session_state:
         st.session_state.tavily_api_validity = False
 
+    if "langchain_api_validity" not in st.session_state:
+        st.session_state.langchain_api_validity = False
+
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
 
@@ -992,6 +995,11 @@ def create_text_image():
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
+            st.write(
+                "<small>$\,$:blue[Validity of the key: ]</small>",
+                st.session_state.tavily_api_validity,
+                unsafe_allow_html=True
+            )
             st.write("**LangChain API Key**")
             langchain_api_key = st.text_input(
                 label="$\\textsf{Your LangChain API Key}$",
@@ -999,6 +1007,11 @@ def create_text_image():
                 placeholder="ls__",
                 on_change=check_api_keys,
                 label_visibility="collapsed",
+            )
+            st.write(
+                "<small>$\,$:blue[Validity of the key: ]</small>",
+                st.session_state.langchain_api_validity,
+                unsafe_allow_html=True
             )
             authentication = True
         else:
@@ -1027,12 +1040,15 @@ def create_text_image():
 
                 if choice_api == "My keys" or is_langchain_api_key_valid(langchain_api_key):
                     os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
+                    st.session_state.langchain_api_validity = True
                     os.environ["LANGCHAIN_TRACING_V2"] = "true"
                     current_date = datetime.datetime.now().date()
                     date_string = str(current_date)
                     os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
                 else:
+                    st.session_state.langchain_api_validity = False
                     os.environ["LANGCHAIN_TRACING_V2"] = "false"
+                st.rerun()
             else:
                 st.info(
                     """
