@@ -1000,6 +1000,8 @@ def create_text_image():
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
+            if openai_api_key or tavily_api_key or langchain_api_key:
+                st.session_state.ready = False
             authentication = True
         else:
             openai_api_key = st.secrets["OPENAI_API_KEY"]
@@ -1028,7 +1030,6 @@ def create_text_image():
                 if choice_api == "My keys" or is_langchain_api_key_valid(langchain_api_key):
                     os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
                     os.environ["LANGCHAIN_TRACING_V2"] = "true"
-                    # os.environ["LANGCHAIN_TRACING_V2"] = "false"
                     current_date = datetime.datetime.now().date()
                     date_string = str(current_date)
                     os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
