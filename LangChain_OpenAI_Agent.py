@@ -977,7 +977,7 @@ def create_text_image():
 
         if choice_api == "Your keys":
             st.write("**OpenAI API Key**")
-            st.session_state.openai_api_key = st.text_input(
+            openai_api_key = st.text_input(
                 label="$\\textsf{Your OPenAI API Key}$",
                 type="password",
                 placeholder="sk-",
@@ -985,7 +985,7 @@ def create_text_image():
                 label_visibility="collapsed",
             )
             st.write("**Tavily Search API Key**")
-            st.session_state.tavily_api_key = st.text_input(
+            tavily_api_key = st.text_input(
                 label="$\\textsf{Your Tavily API Key}$",
                 type="password",
                 placeholder="tvly-",
@@ -993,7 +993,7 @@ def create_text_image():
                 label_visibility="collapsed",
             )
             st.write("**LangChain API Key**")
-            st.session_state.langchain_api_key = st.text_input(
+            langchain_api_key = st.text_input(
                 label="$\\textsf{Your LangChain API Key}$",
                 type="password",
                 placeholder="ls__",
@@ -1002,9 +1002,9 @@ def create_text_image():
             )
             authentication = True
         else:
-            st.session_state.openai_api_key = st.secrets["OPENAI_API_KEY"]
-            st.session_state.tavily_api_key = st.secrets["TAVILY_API_KEY"]
-            st.session_state.langchain_api_key = st.secrets["LANGCHAIN_API_KEY"]
+            openai_api_key = st.secrets["OPENAI_API_KEY"]
+            tavily_api_key = st.secrets["TAVILY_API_KEY"]
+            langchain_api_key = st.secrets["LANGCHAIN_API_KEY"]
             stored_pin = st.secrets["USER_PIN"]
             st.write("**Password**")
             user_pin = st.text_input(
@@ -1014,19 +1014,19 @@ def create_text_image():
 
     if authentication:
         if not st.session_state.ready:
-            if is_openai_api_key_valid(st.session_state.openai_api_key):
-                os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
+            if is_openai_api_key_valid(openai_api_key):
+                os.environ["OPENAI_API_KEY"] = openai_api_key
                 st.session_state.openai = OpenAI()
                 st.session_state.ready = True
 
-                if is_tavily_api_key_valid(st.session_state.tavily_api_key):
-                    os.environ["TAVILY_API_KEY"] = st.session_state.tavily_api_key
+                if is_tavily_api_key_valid(tavily_api_key):
+                    os.environ["TAVILY_API_KEY"] = tavily_api_key
                     st.session_state.tavily_api_validity = True
                 else:
                     st.session_state.tavily_api_validity = False
 
-                if choice_api == "My keys" or is_langchain_api_key_valid(st.session_state.langchain_api_key):
-                    os.environ["LANGCHAIN_API_KEY"] = st.session_state.langchain_api_key
+                if choice_api == "My keys" or is_langchain_api_key_valid(langchain_api_key):
+                    os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
                     os.environ["LANGCHAIN_TRACING_V2"] = "true"
                     current_date = datetime.datetime.now().date()
                     date_string = str(current_date)
