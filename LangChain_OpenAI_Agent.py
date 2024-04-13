@@ -979,7 +979,12 @@ def create_text_image():
         )
 
         if choice_api == "Your keys":
-            st.write("**OpenAI API Key**")
+            validity = "Valid" if st.session_state.ready else "Not valid"
+            st.write(
+                "**OpenAI API Key** ",
+                f"$~~~$<small>:blue[({validity})]</small>",
+                unsafe_allow_html=True
+            )
             openai_api_key = st.text_input(
                 label="$\\textsf{Your OPenAI API Key}$",
                 type="password",
@@ -987,7 +992,12 @@ def create_text_image():
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
-            st.write("**Tavily Search API Key**")
+            validity = "Valid" if st.session_state.tavily_api_validity else "Not valid"
+            st.write(
+                "**Tavily Search Key** ",
+                f"$\:\!$<small>:blue[({validity})]</small>",
+                unsafe_allow_html=True
+            )
             tavily_api_key = st.text_input(
                 label="$\\textsf{Your Tavily API Key}$",
                 type="password",
@@ -995,23 +1005,18 @@ def create_text_image():
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
+            validity = "Valid" if st.session_state.langchain_api_validity else "Not valid"
             st.write(
-                "<small>$\,$:blue[Validity of the key: ]</small>",
-                st.session_state.tavily_api_validity,
+                "**LangChain Key** ",
+                f"$~~~\,$<small>:blue[({validity})]</small>",
                 unsafe_allow_html=True
             )
-            st.write("**LangChain API Key**")
             langchain_api_key = st.text_input(
                 label="$\\textsf{Your LangChain API Key}$",
                 type="password",
                 placeholder="ls__",
                 on_change=check_api_keys,
                 label_visibility="collapsed",
-            )
-            st.write(
-                "<small>$\,$:blue[Validity of the key: ]</small>",
-                st.session_state.langchain_api_validity,
-                unsafe_allow_html=True
             )
             authentication = True
         else:
