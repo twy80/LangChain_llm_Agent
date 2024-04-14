@@ -979,10 +979,10 @@ def create_text_image():
         )
 
         if choice_api == "Your keys":
-            validity = "Valid" if st.session_state.ready else "Not valid"
+            validity = "(Verified)" if st.session_state.ready else ""
             st.write(
                 "**OpenAI API Key** ",
-                f"$~~~$<small>:blue[({validity})]</small>",
+                f"$~~~$<small>:blue[{validity}]</small>",
                 unsafe_allow_html=True
             )
             openai_api_key = st.text_input(
@@ -992,10 +992,10 @@ def create_text_image():
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
-            validity = "Valid" if st.session_state.tavily_api_validity else "Not valid"
+            validity = "(Verified)" if st.session_state.tavily_api_validity else ""
             st.write(
                 "**Tavily Search Key** ",
-                f"$\:\!$<small>:blue[({validity})]</small>",
+                f"$\:\!$<small>:blue[{validity}]</small>",
                 unsafe_allow_html=True
             )
             tavily_api_key = st.text_input(
@@ -1005,10 +1005,10 @@ def create_text_image():
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
-            validity = "Valid" if st.session_state.langchain_api_validity else "Not valid"
+            validity = "(Verified)" if st.session_state.langchain_api_validity else ""
             st.write(
                 "**LangChain Key** ",
-                f"$~~~\,$<small>:blue[({validity})]</small>",
+                f"$~~~\,$<small>:blue[{validity}]</small>",
                 unsafe_allow_html=True
             )
             langchain_api_key = st.text_input(
