@@ -1112,6 +1112,7 @@ def create_text_image():
         st.write(
             "<small>**T.-W. Yoon**, Mar. 2024  \n</small>",
             "<small>[OpenAI Assistants](https://assistants.streamlit.app/)  \n</small>",
+            "<small>[Multi-Agent Debate](https://multi-agent-debate.streamlit.app/)  \n</small>",
             "<small>[TWY's Playground](https://twy-playground.streamlit.app/)  \n</small>",
             "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
             unsafe_allow_html=True,
