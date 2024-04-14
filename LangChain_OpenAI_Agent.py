@@ -23,7 +23,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain.tools.retriever import create_retriever_tool
-from langchain.agents import create_openai_tools_agent
+from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
 from langchain_experimental.tools import PythonREPLTool
 from langchain.callbacks.base import BaseCallbackHandler
@@ -202,7 +202,7 @@ def run_agent(query, model, tools=[], temperature=0.7):
         callbacks=[StreamHandler(st.empty())]
     )
     if tools:
-        agent = create_openai_tools_agent(
+        agent = create_tool_calling_agent(
             llm, tools, st.session_state.agent_prompt
         )
         agent_executor = AgentExecutor(
@@ -1046,13 +1046,13 @@ def create_text_image():
                 if choice_api == "My keys" or is_langchain_api_key_valid(langchain_api_key):
                     os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
                     st.session_state.langchain_api_validity = True
-                    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+                    os.environ["LANGCHAIN_TRACING_V2"] = "True"
                     current_date = datetime.datetime.now().date()
                     date_string = str(current_date)
                     os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
                 else:
                     st.session_state.langchain_api_validity = False
-                    os.environ["LANGCHAIN_TRACING_V2"] = "false"
+                    os.environ["LANGCHAIN_TRACING_V2"] = "False"
                 st.rerun()
             else:
                 st.info(
