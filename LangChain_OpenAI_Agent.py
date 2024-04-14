@@ -197,7 +197,7 @@ def run_agent(query, model, tools=[], temperature=0.7):
 
     llm = ChatOpenAI(
         temperature=temperature,
-        model_name=model,
+        model=model,
         streaming=True,
         callbacks=[StreamHandler(st.empty())]
     )
