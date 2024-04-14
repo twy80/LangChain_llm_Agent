@@ -686,7 +686,7 @@ def create_text(model):
         st.write(
             "<small>PythonREPL from LangChain is still experimental, "
             "and therefore caution is needed. Users are also advised "
-            "to choose gpt-4 with Python REPL.</small>",
+            "to choose gpt-4-turbo with Python REPL.</small>",
             unsafe_allow_html=True,
         )
 
@@ -959,8 +959,8 @@ def create_image(model):
 
 def create_text_image():
     """
-    Generate text or image by using llm models "gpt-3.5-turbo-0125",
-    "gpt-4-0125-preview", "gpt-4-vision-preview", or "dall-e-3",
+    Generate text or image by using llm models "gpt-3.5-turbo",
+    "gpt-4-turbo", "gpt-4-vision-preview", or "dall-e-3",
     """
 
     st.write("## 📚 LangChain OpenAI Agent")
@@ -1091,8 +1091,8 @@ def create_text_image():
         model = st.radio(
             label="$\\textsf{Models}$",
             options=(
-                "gpt-3.5-turbo-0125",
-                "gpt-4-0125-preview",
+                "gpt-3.5-turbo",
+                "gpt-4-turbo",
                 "gpt-4-vision-preview",
                 "dall-e-3",
             ),
@@ -1100,7 +1100,7 @@ def create_text_image():
             on_change=switch_between_apps,
         )
 
-    if model in ("gpt-3.5-turbo-0125", "gpt-4-0125-preview"):
+    if model in ("gpt-3.5-turbo", "gpt-4-turbo"):
         create_text(model)
     elif model == "gpt-4-vision-preview":
         create_text_with_image(model)
