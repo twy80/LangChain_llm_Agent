@@ -1053,7 +1053,8 @@ def create_text_image():
                 else:
                     st.session_state.langchain_api_validity = False
                     os.environ["LANGCHAIN_TRACING_V2"] = "False"
-                st.rerun()
+                # st.rerun()
+                st.write(langchain_api_key)
             else:
                 st.info(
                     """
