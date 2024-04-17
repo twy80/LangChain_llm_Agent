@@ -1019,6 +1019,8 @@ def create_text_image():
                 label_visibility="collapsed",
             )
             authentication = True
+            if st.session_state.langchain_api_validity:
+                st.write(os.environ["LANGCHAIN_API_KEY"])
         else:
             openai_api_key = st.secrets["OPENAI_API_KEY"]
             tavily_api_key = st.secrets["TAVILY_API_KEY"]
@@ -1053,8 +1055,7 @@ def create_text_image():
                 else:
                     st.session_state.langchain_api_validity = False
                     os.environ["LANGCHAIN_TRACING_V2"] = "False"
-                # st.rerun()
-                st.write(langchain_api_key)
+                st.rerun()
             else:
                 st.info(
                     """
