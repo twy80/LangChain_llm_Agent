@@ -1019,13 +1019,11 @@ def create_text_image():
                 label_visibility="collapsed",
             )
             authentication = True
-            if st.session_state.langchain_api_validity:
-                st.write(os.environ["LANGCHAIN_API_KEY"])
         else:
-            openai_api_key = st.secrets["OPENAI_API_KEY"]
-            tavily_api_key = st.secrets["TAVILY_API_KEY"]
-            langchain_api_key = st.secrets["LANGCHAIN_API_KEY"]
-            stored_pin = st.secrets["USER_PIN"]
+            openai_api_key = st.secrets["openai_api_key"]
+            tavily_api_key = st.secrets["tavily_api_key"]
+            langchain_api_key = st.secrets["langchain_api_key"]
+            stored_pin = st.secrets["user_PIN"]
             st.write("**Password**")
             user_pin = st.text_input(
                 label="Enter password", type="password", label_visibility="collapsed"
