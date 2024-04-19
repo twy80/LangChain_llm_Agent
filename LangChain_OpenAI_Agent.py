@@ -1014,6 +1014,7 @@ def create_text_image():
                     This app is coded by T.-W. Yoon, a professor of systems theory at
                     Korea University. Take a look at some of his other projects:
                     - [OpenAI Assistants](https://assistants.streamlit.app/)
+                    - [Multi-Agent Debate](https://multi-agent-debate.streamlit.app/)
                     - [TWY's Playground](https://twy-playground.streamlit.app/)
                     - [Differential equations](https://diff-eqn.streamlit.app/)
                     """
