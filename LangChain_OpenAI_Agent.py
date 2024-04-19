@@ -611,11 +611,6 @@ def create_text(model):
             horizontal=True,
             index=2,
         )
-        st.write("")
-        st.write(
-            "<small>[**LangSmith**](https://smith.langchain.com/projects)</small>",
-            unsafe_allow_html=True,
-        )
 
     st.write("")
     st.write("##### Message to AI")
@@ -1006,18 +1001,13 @@ def create_text_image():
             else:
                 st.info(
                     """
-                    **Enter your OpenAI, Tavily Search, and LangChain API keys
-                    in the sidebar**
+                    **Enter your OpenAI and Tavily Search API keys in the sidebar**
 
-                    Get an OpenAI API key [here](https://platform.openai.com/api-keys),
-                    a Tavily Search API key [here](https://app.tavily.com/), and
-                    a LangChain API key [here](https://smith.langchain.com/settings).
-                    Your LangChain API key is used to trace LLM messages at
-                    https://smith.langchain.com.
-                    
-                    If you do not want to use any search tool, there is no need
-                    to enter your Tavily Search API key. Likewise, your LangChain API
-                    key is not needed if you are not tracing LLM messages.
+                    Get an OpenAI API key [here](https://platform.openai.com/api-keys)
+                    and a Tavily Search API key [here](https://app.tavily.com/)
+
+                    If you do not want to use any internet search tool, no need
+                    to enter your Tavily Search API key.
                     """
                 )
                 st.info(
