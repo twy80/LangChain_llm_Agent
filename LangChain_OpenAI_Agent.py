@@ -90,9 +90,6 @@ def initialize_session_state_variables():
     if "tavily_api_validity" not in st.session_state:
         st.session_state.tavily_api_validity = False
 
-    if "langchain_api_validity" not in st.session_state:
-        st.session_state.langchain_api_validity = False
-
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
 
@@ -141,36 +138,6 @@ def is_tavily_api_key_valid(tavily_api_key):
         return False
 
     return True
-
-
-def is_langchain_api_key_valid(langchain_api_key):
-    """
-    Return True if the given LangChain API key is valid.
-    """
-
-    run_id = str(uuid.uuid4())
-
-    response = requests.post(
-        "https://api.smith.langchain.com/runs",
-        json={
-            "id": run_id,
-            "name": "Test Run",
-            "run_type": "chain",
-            # "start_time": datetime.datetime.utcnow().isoformat(),
-            "inputs": {"text": "Foo"},
-        },
-        headers={"x-api-key": langchain_api_key},
-    )
-    requests.patch(
-        f"https://api.smith.langchain.com/runs/{run_id}",
-        json={
-            "outputs": {"my_output": "Bar"},
-            # "end_time": datetime.datetime.utcnow().isoformat(),
-        },
-        headers={"x-api-key": langchain_api_key},
-    )
-
-    return response.status_code == 202
 
 
 def check_api_keys():
@@ -1005,19 +972,6 @@ def create_text_image():
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
-            validity = "(Verified)" if st.session_state.langchain_api_validity else ""
-            st.write(
-                "**LangChain Key** ",
-                f"$~~~\,$<small>:blue[{validity}]</small>",
-                unsafe_allow_html=True
-            )
-            langchain_api_key = st.text_input(
-                label="$\\textsf{Your LangChain API Key}$",
-                type="password",
-                placeholder="ls__",
-                on_change=check_api_keys,
-                label_visibility="collapsed",
-            )
             authentication = True
         else:
             openai_api_key = st.secrets["openai_api_key"]
@@ -1037,22 +991,17 @@ def create_text_image():
                 st.session_state.openai = OpenAI()
                 st.session_state.ready = True
 
-                if is_tavily_api_key_valid(tavily_api_key):
-                    os.environ["TAVILY_API_KEY"] = tavily_api_key
-                    st.session_state.tavily_api_validity = True
-                else:
-                    st.session_state.tavily_api_validity = False
-
-                if choice_api == "My keys" or is_langchain_api_key_valid(langchain_api_key):
+                if choice_api == "My keys":
                     os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
-                    st.session_state.langchain_api_validity = True
-                    os.environ["LANGCHAIN_TRACING_V2"] = "True"
                     current_date = datetime.datetime.now().date()
                     date_string = str(current_date)
                     os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
                 else:
-                    st.session_state.langchain_api_validity = False
-                    os.environ["LANGCHAIN_TRACING_V2"] = "False"
+                    if is_tavily_api_key_valid(tavily_api_key):
+                        os.environ["TAVILY_API_KEY"] = tavily_api_key
+                        st.session_state.tavily_api_validity = True
+                    else:
+                        st.session_state.tavily_api_validity = False
                 st.rerun()
             else:
                 st.info(
