@@ -969,10 +969,10 @@ def create_text_image():
             )
             authentication = True
         else:
-            openai_api_key = st.secrets["openai_api_key"]
-            tavily_api_key = st.secrets["tavily_api_key"]
-            langchain_api_key = st.secrets["langchain_api_key"]
-            stored_pin = st.secrets["user_PIN"]
+            openai_api_key = st.secrets["OPENAI_API_KEY"]
+            tavily_api_key = st.secrets["TAVILY_API_KEY"]
+            langchain_api_key = st.secrets["LANGCHAIN_API_KEY"]
+            stored_pin = st.secrets["USER_PIN"]
             st.write("**Password**")
             user_pin = st.text_input(
                 label="Enter password", type="password", label_visibility="collapsed"
@@ -1009,6 +1009,7 @@ def create_text_image():
                     no need to enter your Tavily Search API key.
                     """
                 )
+                st.image("files/Streamlit_Agent_App.png")
                 st.info(
                     """
                     This app is coded by T.-W. Yoon, a professor of systems theory at
