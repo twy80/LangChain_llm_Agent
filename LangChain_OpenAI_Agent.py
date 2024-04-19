@@ -1004,10 +1004,9 @@ def create_text_image():
                     **Enter your OpenAI and Tavily Search API keys in the sidebar**
 
                     Get an OpenAI API key [here](https://platform.openai.com/api-keys)
-                    and a Tavily Search API key [here](https://app.tavily.com/)
-
-                    If you do not want to use any internet search tool, no need
-                    to enter your Tavily Search API key.
+                    and a Tavily Search API key [here](https://app.tavily.com/).
+                    If you do not want to use Tavily Search for searching the internet,
+                    no need to enter your Tavily Search API key.
                     """
                 )
                 st.info(
