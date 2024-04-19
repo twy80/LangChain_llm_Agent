@@ -1086,6 +1086,19 @@ def create_text_image():
         st.stop()
 
     with st.sidebar:
+        if choice_api == "My keys":
+            st.write("")
+            st.write("**LangSmith Tracing**")
+            langsmith = st.radio(
+                label="LangSmith Tracing",
+                options=("On", "Off"),
+                label_visibility="collapsed",
+                index=0,
+                horizontal=True
+            )
+            os.environ["LANGCHAIN_TRACING_V2"] = (
+                "True" if langsmith == "On" else "False"
+            )
         st.write("")
         st.write("**Models**")
         model = st.radio(
