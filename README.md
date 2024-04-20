@@ -18,8 +18,8 @@
   - Supported tools are Tavily Search, arixv, retrieval (RAG), and python_REPL.
     * To use Tavily Search, you need a Tavily API key that can be obtained
       [here](https://app.tavily.com/).
-    * PythonREPL from LangChain is still experimental, and therefore may lead to
-      incorrect results. Cautious use is needed.
+    * PythonREPL from LangChain is still experimental, and therefore caution is
+      needed. Users are also advised to choose gpt-4-turbo-preview with Python REPL.
 
   - Tracing LLM messages is possible using LangSmith. For this, you need a
     LangChain API key that can be obtained [here](https://smith.langchain.com/settings).
