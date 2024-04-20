@@ -3,7 +3,7 @@ LangChain Agents (by T.-W. Yoon, Mar. 2024)
 """
 
 import streamlit as st
-import os, base64, re, requests, uuid, datetime, time
+import os, base64, re, requests, datetime, time
 from io import BytesIO, StringIO
 from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
@@ -25,6 +25,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.tools.retriever import create_retriever_tool
 from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
+from langchain.agents import load_tools
 from langchain_experimental.tools import PythonREPLTool
 from langchain.callbacks.base import BaseCallbackHandler
 from tavily import TavilyClient
@@ -576,9 +577,10 @@ def create_text(model):
         "You are an expert in coding who provides advice on "
         "good coding styles."
     )
-    math_assistant = "You are a math assistant."
+    science_assistant = "You are a science assistant."
     roles = (
-        general_role, english_teacher, translator, coding_adviser, math_assistant
+        general_role, english_teacher, translator,
+        coding_adviser, science_assistant
     )
 
     with st.sidebar:
@@ -627,7 +629,7 @@ def create_text(model):
 
     st.write("")
     st.write("**Tools**")
-    tool_options = ["tavily_search", "python_repl", "retrieval"]
+    tool_options = ["tavily_search", "arxiv", "python_repl", "retrieval"]
     selected_tools = st.multiselect(
         label="assistant tools",
         options=tool_options,
@@ -642,6 +644,8 @@ def create_text(model):
         tavily_search = TavilySearchResults()
     else:
         tavily_search = None
+
+    arxiv = load_tools(["arxiv"])[0]
 
     python_repl = PythonREPLTool()
     if "python_repl" in selected_tools:
@@ -660,6 +664,7 @@ def create_text(model):
     # Tools to be used with the llm
     tool_dictionary = {
         "tavily_search": tavily_search,
+        "arxiv": arxiv,
         "python_repl": python_repl,
         "retrieval": st.session_state.retriever_tool
     }
@@ -685,19 +690,18 @@ def create_text(model):
         (
             "system",
             f"{st.session_state.ai_role[0]} Your goal is to provide answers "
-            "to human inquiries. You must inform the human of the basis of "
-            "your answers, i.e., whether your answers are based on search "
-            "results from the internet (if 'tavily_search' is used), "
-            "information from the uploaded documents (if 'retriever' is "
-            "used), or your general knowledge. Use markdown syntax and "
-            "include relevant sources, like URLs, following MLA format. "
-            "Should the information not be available through internet "
-            "searches, the uploaded documents, or your general knowledge, "
-            "please inform the human explicitly that the answer could "
-            "not be found. Also if you use 'python_repl' to perform "
-            "computation, show the Python code that you run. When showing "
-            "the Python code, encapsulate the code in Markdown format, "
-            "e.g.,\n\n"
+            "to human inquiries. You must inform the human about the basis "
+            "of your answers, i.e., whether they are based on internet search "
+            "results ('tavily_search'), scientific articles from Arxiv.org "
+            "('arxiv'), uploaded documents ('retriever'), or your general "
+            "knowledge. Use Markdown syntax and include relevant sources, "
+            "such as URLs, following MLA format. If the information is not "
+            "available through internet searches, scientific articles, "
+            "uploaded documents, or your general knowledge, explicitly inform "
+            "the human that the answer could not be found. Also, if you use "
+            "'python_repl' for computation, show the Python code that you run. "
+            "When showing the Python code, encapsulate the code in Markdown "
+            "format, e.g.,\n\n"
             "```python\n"
             "....\n"
             "```"
@@ -987,6 +991,8 @@ def create_text_image():
                 st.session_state.ready = True
 
                 if choice_api == "My keys":
+                    os.environ["TAVILY_API_KEY"] = tavily_api_key
+                    st.session_state.tavily_api_validity = True
                     os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
                     current_date = datetime.datetime.now().date()
                     date_string = str(current_date)
