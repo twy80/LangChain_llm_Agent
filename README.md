@@ -15,7 +15,7 @@
 
   - Recording of the user's voice is stopped when there is no input for 3 seconds.
   
-  - Supported tools are Tavily Search, retrieval (RAG), and python_REPL.
+  - Supported tools are Tavily Search, arixv, retrieval (RAG), and python_REPL.
     * To use Tavily Search, you need a Tavily API key that can be obtained
       [here](https://app.tavily.com/).
     * PythonREPL from LangChain is still experimental, and therefore may lead to
