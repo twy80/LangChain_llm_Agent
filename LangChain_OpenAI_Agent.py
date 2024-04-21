@@ -91,9 +91,6 @@ def initialize_session_state_variables():
     if "tavily_api_validity" not in st.session_state:
         st.session_state.tavily_api_validity = False
 
-    if "vector_store" not in st.session_state:
-        st.session_state.vector_store = None
-
     if "vector_store_message" not in st.session_state:
         st.session_state.vector_store_message = None
 
@@ -345,16 +342,16 @@ def get_retriever():
 
     if st.button(label="Create the vector store"):
         # Create the vector store.
-        st.session_state.vector_store = get_vector_store(uploaded_files)
+        vector_store = get_vector_store(uploaded_files)
 
-        if st.session_state.vector_store is not None:
+        if vector_store is not None:
             uploaded_file_names = [file.name for file in uploaded_files]
             file_names = ", ".join(uploaded_file_names)
             st.session_state.vector_store_message = (
                 f"Vector store for :blue[[{file_names}]] is ready!"
             )
-            retriever = st.session_state.vector_store.as_retriever()
-            retriever_tool = create_retriever_tool(
+            retriever = vector_store.as_retriever()
+            st.session_state.retriever_tool = create_retriever_tool(
                 retriever,
                 name="retriever",
                 description=(
@@ -364,12 +361,6 @@ def get_retriever():
                 ),
             )
             st.session_state.uploader_key += 1
-            return retriever_tool
-        else:
-            return None
-    else:
-        # Return the retriever_tool already prepared
-        return st.session_state.retriever_tool
 
 
 def display_text_with_equations(text):
@@ -526,7 +517,6 @@ def reset_conversation():
     st.session_state.ai_resp = []
     st.session_state.temperature[1] = st.session_state.temperature[0]
     st.session_state.audio_response = None
-    st.session_state.vector_store = None
     st.session_state.vector_store_message = None
     st.session_state.tools = []
     st.session_state.retriever_tool = None
@@ -658,7 +648,8 @@ def create_text(model):
         )
 
     if "retrieval" in selected_tools:
-        st.session_state.retriever_tool = get_retriever()
+        # Get the retriever tool and save it to st.session_state.retriever_tool.
+        get_retriever()
         if st.session_state.vector_store_message:
             st.write(st.session_state.vector_store_message)
 
