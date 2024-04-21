@@ -530,6 +530,7 @@ def reset_conversation():
     st.session_state.vector_store_message = None
     st.session_state.tools = []
     st.session_state.retriever_tool = None
+    st.session_state.uploader_key = 0
 
 
 def switch_between_apps():
@@ -1039,7 +1040,7 @@ def create_text_image():
                 label="LangSmith Tracing",
                 options=("On", "Off"),
                 label_visibility="collapsed",
-                index=0,
+                index=1,
                 horizontal=True
             )
             os.environ["LANGCHAIN_TRACING_V2"] = (
