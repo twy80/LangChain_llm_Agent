@@ -660,11 +660,10 @@ def create_text(model):
         "python_repl": python_repl,
         "retrieval": st.session_state.retriever_tool
     }
-    tools = []
-    for tool_name in selected_tools:
-        tool = tool_dictionary[tool_name]
-        if tool is not None:
-            tools.append(tool)
+    tools = [
+        tool_dictionary[key]
+        for key in selected_tools if tool_dictionary[key] is not None
+    ]
 
     # Prompts for the agents
     st.session_state.chat_prompt = ChatPromptTemplate.from_messages([
@@ -734,7 +733,7 @@ def create_text(model):
     right.download_button(
         label="Download",
         data=download_data,
-        file_name="conversations.txt",
+        file_name="conversation_with_agent.txt",
         mime="text/plain"
     )
 
