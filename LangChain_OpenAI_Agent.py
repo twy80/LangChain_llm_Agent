@@ -327,7 +327,8 @@ def get_vector_store(uploaded_files):
 
 def get_retriever():
     """
-    Upload document(s), create a vector store, and return a retriever tool.
+    Upload document(s), create a vector store, and
+    save it to a session_state variable.
     """
 
     st.write("")
