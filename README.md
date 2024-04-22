@@ -15,16 +15,17 @@
 
   - Recording of the user's voice is stopped when there is no input for 3 seconds.
   
-  - Supported tools are Tavily Search, arixv, retrieval (RAG), and python_REPL.
+  - Supported tools include Tavily Search, ArXiv, Retrieval (RAG), and python_REPL.
     * To use Tavily Search, you need a Tavily API key that can be obtained
       [here](https://app.tavily.com/).
     * PythonREPL from LangChain is still experimental, and therefore caution is
       needed. Users are also advised to choose gpt-4-turbo-preview with Python REPL.
 
-  - Tracing LLM messages is possible using LangSmith. For this, you need a
+  - Tracing LLM messages is possible using LangSmith if you download the source code
+    and run it on your machine or server.  For this, you need a
     LangChain API key that can be obtained [here](https://smith.langchain.com/settings).
 
-* This page is written in python using the Streamlit framework.
+* This page is written in Python using the Streamlit framework.
 
 ## Usage
 ```python
