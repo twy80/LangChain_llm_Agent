@@ -621,7 +621,7 @@ def create_text(model):
 
     st.write("")
     st.write("**Tools**")
-    tool_options = ["tavily_search", "arxiv", "python_repl", "retrieval"]
+    tool_options = ["Search", "ArXiv", "Python_REPL", "Retrieval"]
     selected_tools = st.multiselect(
         label="assistant tools",
         options=tool_options,
@@ -656,10 +656,10 @@ def create_text(model):
 
     # Tools to be used with the llm
     tool_dictionary = {
-        "tavily_search": tavily_search,
-        "arxiv": arxiv,
-        "python_repl": python_repl,
-        "retrieval": st.session_state.retriever_tool
+        "Search": tavily_search,
+        "ArXiv": arxiv,
+        "Python_REPL": python_repl,
+        "Retrieval": st.session_state.retriever_tool
     }
     tools = [
         tool_dictionary[key]
@@ -684,7 +684,7 @@ def create_text(model):
             f"{st.session_state.ai_role[0]} Your goal is to provide answers "
             "to human inquiries. You must inform the human about the basis "
             "of your answers, i.e., whether they are based on internet search "
-            "results ('tavily_search'), scientific articles from Arxiv.org "
+            "results ('tavily_search'), scientific articles from arxiv.org "
             "('arxiv'), uploaded documents ('retriever'), or your general "
             "knowledge. Use Markdown syntax and include relevant sources, "
             "such as URLs, following MLA format. If the information is not "
