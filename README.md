@@ -29,8 +29,6 @@
       and fetch your API keys as environments variables. For such secrets management,
       see [this page](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management).
 
-* This page is written in Python using the Streamlit framework.
-
 ## Usage
 ```python
 streamlit run LangChain_OpenAI_Agent.py
