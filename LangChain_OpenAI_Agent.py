@@ -640,7 +640,7 @@ def create_text(model):
     arxiv = load_tools(["arxiv"])[0]
 
     python_repl = PythonREPLTool()
-    if "python_repl" in selected_tools:
+    if "Python_REPL" in selected_tools:
         st.write(
             "<small>PythonREPL from LangChain is still experimental, "
             "and therefore caution is needed. Users are also advised "
@@ -648,7 +648,7 @@ def create_text(model):
             unsafe_allow_html=True,
         )
 
-    if "retrieval" in selected_tools:
+    if "Retrieval" in selected_tools:
         # Get the retriever tool and save it to st.session_state.retriever_tool.
         get_retriever()
         if st.session_state.vector_store_message:
