@@ -23,7 +23,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain.tools.retriever import create_retriever_tool
-from langchain.agents import create_tool_calling_agent
+from langchain.agents import create_openai_tools_agent
+# from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
 from langchain.agents import load_tools
 from langchain_experimental.tools import PythonREPLTool
@@ -167,7 +168,7 @@ def run_agent(query, model, tools=[], temperature=0.7):
         callbacks=[StreamHandler(st.empty())]
     )
     if tools:
-        agent = create_tool_calling_agent(
+        agent = create_openai_tools_agent(
             llm, tools, st.session_state.agent_prompt
         )
         agent_executor = AgentExecutor(
