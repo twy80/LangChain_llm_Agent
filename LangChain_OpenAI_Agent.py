@@ -135,6 +135,10 @@ def is_openai_api_key_valid(openai_api_key):
 
 
 def is_bing_subscription_key_valid(bing_subscription_key):
+    """
+    Return True if the given Bing subscription key is valid.
+    """
+
     try:
         bing_search = BingSearchAPIWrapper(
             bing_subscription_key=bing_subscription_key,
@@ -1003,6 +1007,7 @@ def create_text_image():
             bing_subscription_key = st.text_input(
                 label="$\\textsf{Your Bing Subscription Key}$",
                 type="password",
+                value="",
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
@@ -1046,9 +1051,9 @@ def create_text_image():
 
                     Get an OpenAI API Key [here](https://platform.openai.com/api-keys)
                     and a Bing Subscription Key [here](https://portal.azure.com/).
-                    You can also follow instructions at
+                    You can also follow instructions on
                     [this site](https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e)
-                    to get your Bing Subscription Key. If you do not want to search
+                    to get your Bing Subscription Key. If you do not plan to search
                     the internet, there is no need to enter your Bing Subscription key.
                     """
                 )
