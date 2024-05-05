@@ -1023,6 +1023,8 @@ def create_text_image():
             )
             authentication = user_pin == stored_pin
 
+        os.environ["BING_SEARCH_URL"] = "https://api.bing.microsoft.com/v7.0/search"
+
     if authentication:
         if not st.session_state.ready:
             if is_openai_api_key_valid(openai_api_key):
