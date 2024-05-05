@@ -1,6 +1,7 @@
 openai
 streamlit
 audio-recorder-streamlit
+matplotlib
 pillow
 langchain
 langchain-openai
