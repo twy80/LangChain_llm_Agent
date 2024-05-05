@@ -1,4 +1,4 @@
-# [LangChain_OpenAI_Agent](https://langchain-llm-agent.streamlit.app/)
+# [LangChain_LLM_Agent](https://langchain-llm-agent.streamlit.app/)
 
 * This app generates text and images using OpenAI's APIs and LangChain.
   
@@ -31,6 +31,6 @@
 
 ## Usage
 ```python
-streamlit run LangChain_OpenAI_Agent.py
+streamlit run LangChain_llm_Agent.py
 ```
 [![Exploring the App: A Visual Guide](files/Streamlit_Agent_App.png)](https://youtu.be/ux7ux8YXnMI)
