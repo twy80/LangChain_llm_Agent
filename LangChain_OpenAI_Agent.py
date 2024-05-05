@@ -4,7 +4,9 @@ LangChain Agents (by T.-W. Yoon, Mar. 2024)
 
 import streamlit as st
 import os, base64, re, requests, datetime, time
+import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
+from functools import partial
 from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
 from audio_recorder_streamlit import audio_recorder
@@ -15,13 +17,14 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema import HumanMessage, AIMessage, SystemMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_community.utilities import BingSearchAPIWrapper
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
+from langchain.tools import Tool
 from langchain.tools.retriever import create_retriever_tool
 from langchain.agents import create_openai_tools_agent
 # from langchain.agents import create_tool_calling_agent
@@ -29,7 +32,7 @@ from langchain.agents import AgentExecutor
 from langchain.agents import load_tools
 from langchain_experimental.tools import PythonREPLTool
 from langchain.callbacks.base import BaseCallbackHandler
-from tavily import TavilyClient
+from langchain.pydantic_v1 import BaseModel, Field
 
 
 def initialize_session_state_variables():
@@ -89,8 +92,8 @@ def initialize_session_state_variables():
     if "tools" not in st.session_state:
         st.session_state.tools = []
 
-    if "tavily_api_validity" not in st.session_state:
-        st.session_state.tavily_api_validity = False
+    if "bing_subscription_validity" not in st.session_state:
+        st.session_state.bing_subscription_validity = False
 
     if "vector_store_message" not in st.session_state:
         st.session_state.vector_store_message = None
@@ -98,8 +101,14 @@ def initialize_session_state_variables():
     if "retriever_tool" not in st.session_state:
         st.session_state.retriever_tool = None
 
+    if "fig" not in st.session_state:
+        st.session_state.fig = []
 
-# This is for streaming on Streamlit
+
+class MySearchToolInput(BaseModel):
+    query: str = Field(description="search query to look up")
+
+
 class StreamHandler(BaseCallbackHandler):
     def __init__(self, container, initial_text=""):
         self.container = container
@@ -125,18 +134,18 @@ def is_openai_api_key_valid(openai_api_key):
     return response.status_code == 200
 
 
-def is_tavily_api_key_valid(tavily_api_key):
-    """
-    Return True if the given Tavily Search API key is valid.
-    """
-
+def is_bing_subscription_key_valid(bing_subscription_key):
     try:
-        tavily = TavilyClient(api_key=tavily_api_key)
-        tavily.search(query="where can I get a Tavily search API key?")
+        bing_search = BingSearchAPIWrapper(
+            bing_subscription_key=bing_subscription_key,
+            bing_search_url="https://api.bing.microsoft.com/v7.0/search",
+            k=1
+        )
+        bing_search.run("Where can I get a Bing subscription key?")
     except:
         return False
-
-    return True
+    else:
+        return True
 
 
 def check_api_keys():
@@ -151,7 +160,7 @@ def run_agent(query, model, tools=[], temperature=0.7):
     Args:
         query (string): User's query
         model (string): LLM like "gpt-3.5-turbo"
-        tools (list): sublist of [tavily_search, retrieval, python_repl]
+        tools (list): sublist of [bing_search, arxiv, retrieval, python_repl]
         temperature (float): Value between 0 and 1. Defaults to 0.7
 
     Return:
@@ -523,6 +532,7 @@ def reset_conversation():
     st.session_state.tools = []
     st.session_state.retriever_tool = None
     st.session_state.uploader_key = 0
+    st.session_state.fig = []
 
 
 def switch_between_apps():
@@ -633,10 +643,20 @@ def create_text(model):
         st.session_state.tools = selected_tools
         st.rerun()
 
-    if st.session_state.tavily_api_validity:
-        tavily_search = TavilySearchResults()
+    if st.session_state.bing_subscription_validity:
+        search = BingSearchAPIWrapper()
+        bing_search = Tool(
+            name="bing_search",
+            description=(
+                "A search engine for comprehensive, accurate, and trusted results. "
+                "Useful for when you need to answer questions about current events. "
+                "Input should be a search query."
+            ),
+            func=partial(search.results, num_results=5),
+            args_schema=MySearchToolInput,
+        )
     else:
-        tavily_search = None
+        bing_search = None
 
     arxiv = load_tools(["arxiv"])[0]
 
@@ -657,7 +677,7 @@ def create_text(model):
 
     # Tools to be used with the llm
     tool_dictionary = {
-        "Search": tavily_search,
+        "Search": bing_search,
         "ArXiv": arxiv,
         "Python_REPL": python_repl,
         "Retrieval": st.session_state.retriever_tool
@@ -685,7 +705,7 @@ def create_text(model):
             f"{st.session_state.ai_role[0]} Your goal is to provide answers "
             "to human inquiries. You must inform the human about the basis "
             "of your answers, i.e., whether they are based on internet search "
-            "results ('tavily_search'), scientific articles from arxiv.org "
+            "results ('bing_search'), scientific articles from arxiv.org "
             "('arxiv'), uploaded documents ('retriever'), or your general "
             "knowledge. Use Markdown syntax and include relevant sources, "
             "such as URLs, following MLA format. If the information is not "
@@ -710,15 +730,28 @@ def create_text(model):
     right.write("Click on the mic icon and speak, or type text below.")
 
     # Print conversations
+    no_of_total_msgs = len(st.session_state.message_history.messages)
+    fig_index = -1
     if no_of_msgs == "All":
-        no_of_msgs = len(st.session_state.message_history.messages)
-    for message in st.session_state.message_history.messages[-no_of_msgs:]:
-        if isinstance(message, HumanMessage):
-            with st.chat_message("human"):
-                st.write(message.content)
-        else:
-            with st.chat_message("ai"):
-                display_text_with_equations(message.content)
+        no_of_msgs = no_of_total_msgs
+    for msg_index, message in enumerate(
+        st.session_state.message_history.messages
+    ):
+        plot_condition = (
+            message.content.startswith("Figure") and
+            message.content.endswith("generated by AI.")
+        )
+        if plot_condition:
+            fig_index += 1
+        if msg_index >= no_of_total_msgs - no_of_msgs:
+            if isinstance(message, HumanMessage):
+                with st.chat_message("human"):
+                    st.write(message.content)
+            elif plot_condition:
+                st.pyplot(st.session_state.fig[fig_index])
+            else:
+                with st.chat_message("ai"):
+                    display_text_with_equations(message.content)
 
     # Play TTS
     if st.session_state.audio_response is not None:
@@ -763,6 +796,13 @@ def create_text(model):
                 tools=tools,
                 temperature=st.session_state.temperature[0],
             )
+            fig = plt.gcf()
+            if fig and fig.get_axes():
+                fig_index = len(st.session_state.fig)
+                st.session_state.message_history.add_ai_message(
+                    f"Figure {fig_index + 1} generated by AI."
+                )
+                st.session_state.fig.append(fig)
 
         if generated_text is not None:
             # TTS under two conditions
@@ -941,7 +981,7 @@ def create_text_image():
             validity = "(Verified)" if st.session_state.ready else ""
             st.write(
                 "**OpenAI API Key** ",
-                f"$~~~$<small>:blue[{validity}]</small>",
+                f"<small>:blue[{validity}]</small>",
                 unsafe_allow_html=True
             )
             openai_api_key = st.text_input(
@@ -951,23 +991,25 @@ def create_text_image():
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
-            validity = "(Verified)" if st.session_state.tavily_api_validity else ""
+            if st.session_state.bing_subscription_validity:
+                validity = "(Verified)"
+            else:
+                validity = ""
             st.write(
-                "**Tavily Search Key** ",
-                f"$\:\!$<small>:blue[{validity}]</small>",
+                "**Bing Subscription Key** ",
+                f"<small>:blue[{validity}]</small>",
                 unsafe_allow_html=True
             )
-            tavily_api_key = st.text_input(
-                label="$\\textsf{Your Tavily API Key}$",
+            bing_subscription_key = st.text_input(
+                label="$\\textsf{Your Bing Subscription Key}$",
                 type="password",
-                placeholder="tvly-",
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
             authentication = True
         else:
             openai_api_key = st.secrets["OPENAI_API_KEY"]
-            tavily_api_key = st.secrets["TAVILY_API_KEY"]
+            bing_subscription_key = st.secrets["BING_SUBSCRIPTION_KEY"]
             langchain_api_key = st.secrets["LANGCHAIN_API_KEY"]
             stored_pin = st.secrets["USER_PIN"]
             st.write("**Password**")
@@ -984,28 +1026,30 @@ def create_text_image():
                 st.session_state.ready = True
 
                 if choice_api == "My keys":
-                    os.environ["TAVILY_API_KEY"] = tavily_api_key
-                    st.session_state.tavily_api_validity = True
+                    os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
+                    st.session_state.bing_subscription_validity = True
                     os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
                     current_date = datetime.datetime.now().date()
                     date_string = str(current_date)
                     os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
                 else:
-                    if is_tavily_api_key_valid(tavily_api_key):
-                        os.environ["TAVILY_API_KEY"] = tavily_api_key
-                        st.session_state.tavily_api_validity = True
+                    if is_bing_subscription_key_valid(bing_subscription_key):
+                        os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
+                        st.session_state.bing_subscription_validity = True
                     else:
-                        st.session_state.tavily_api_validity = False
+                        st.session_state.bing_subscription_validity = False
                 st.rerun()
             else:
                 st.info(
                     """
-                    **Enter your OpenAI and Tavily Search API keys in the sidebar**
+                    **Enter your OpenAI and Bing Subscription Keys in the sidebar**
 
-                    Get an OpenAI API key [here](https://platform.openai.com/api-keys)
-                    and a Tavily Search API key [here](https://app.tavily.com/).
-                    If you do not want to use Tavily Search for searching the internet,
-                    no need to enter your Tavily Search API key.
+                    Get an OpenAI API Key [here](https://platform.openai.com/api-keys)
+                    and a Bing Subscription Key [here](https://portal.azure.com/).
+                    You can also follow instructions at
+                    [this site](https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e)
+                    to get your Bing Subscription Key. If you do not want to search
+                    the internet, there is no need to enter your Bing Subscription key.
                     """
                 )
                 st.image("files/Streamlit_Agent_App.png")
