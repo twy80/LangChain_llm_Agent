@@ -1040,7 +1040,10 @@ def create_text_image():
                     date_string = str(current_date)
                     os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
                 else:
-                    if is_bing_subscription_key_valid(bing_subscription_key):
+                    if (
+                        is_bing_subscription_key_valid(bing_subscription_key)
+                        and bing_subscription_key
+                    ):
                         os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
                         st.session_state.bing_subscription_validity = True
                     else:
