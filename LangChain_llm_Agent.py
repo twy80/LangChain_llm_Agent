@@ -139,6 +139,8 @@ def is_bing_subscription_key_valid(bing_subscription_key):
     Return True if the given Bing subscription key is valid.
     """
 
+    if not bing_subscription_key:
+        return False
     try:
         bing_search = BingSearchAPIWrapper(
             bing_subscription_key=bing_subscription_key,
@@ -1040,10 +1042,7 @@ def create_text_image():
                     date_string = str(current_date)
                     os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
                 else:
-                    if (
-                        bing_subscription_key and
-                        is_bing_subscription_key_valid(bing_subscription_key)
-                    ):
+                    if is_bing_subscription_key_valid(bing_subscription_key):
                         os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
                         st.session_state.bing_subscription_validity = True
                     else:
