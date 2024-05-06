@@ -17,8 +17,7 @@
   
   - Supported tools include Bing Search, ArXiv, Retrieval (RAG), and python_REPL.
     * To use Bing Search, you need a Bing Subscription Key that can be obtained
-      [here](https://app.tavily.com/](https://portal.azure.com/). You can also
-      follow instructions on
+      [here](https://portal.azure.com/). You can also follow instructions on
       [this site](https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e)
       to get your Bing Subscription Key.
     * PythonREPL from LangChain is still experimental, and therefore caution is
