@@ -15,7 +15,8 @@
 
   - Recording of the user's voice is stopped when there is no input for 3 seconds.
   
-  - Supported tools include Bing Search, ArXiv, Retrieval (RAG), and python_REPL.
+  - Supported tools include Bing Search, ArXiv, Wikipedia, Retrieval (RAG),
+    and python_REPL.
     * To use Bing Search, you need a Bing Subscription Key that can be obtained
       [here](https://portal.azure.com/). You can also follow instructions on
       [this site](https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e)
