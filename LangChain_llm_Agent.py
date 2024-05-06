@@ -638,7 +638,7 @@ def create_text(model):
 
     st.write("")
     st.write("**Tools**")
-    tool_options = ["Search", "ArXiv", "Python_REPL", "Retrieval"]
+    tool_options = ["Search", "ArXiv", "Wikipedia", "Python_REPL", "Retrieval"]
     selected_tools = st.multiselect(
         label="assistant tools",
         options=tool_options,
@@ -665,6 +665,7 @@ def create_text(model):
         bing_search = None
 
     arxiv = load_tools(["arxiv"])[0]
+    wikipedia = load_tools(["wikipedia"])[0]
 
     python_repl = PythonREPLTool()
     if "Python_REPL" in selected_tools:
@@ -685,6 +686,7 @@ def create_text(model):
     tool_dictionary = {
         "Search": bing_search,
         "ArXiv": arxiv,
+        "Wikipedia": wikipedia,
         "Python_REPL": python_repl,
         "Retrieval": st.session_state.retriever_tool
     }
@@ -712,8 +714,9 @@ def create_text(model):
             "to human inquiries. You must inform the human about the basis "
             "of your answers, i.e., whether they are based on internet search "
             "results ('bing_search'), scientific articles from arxiv.org "
-            "('arxiv'), uploaded documents ('retriever'), or your general "
-            "knowledge. Use Markdown syntax and include relevant sources, "
+            "('arxiv'), wikipedia documents ('wikipedia'), uploaded "
+            "documents ('retriever'), or your general knowledge. "
+            "Use Markdown syntax and include relevant sources, "
             "such as links (URLs), following MLA format. If the information "
             "is not available through internet searches, scientific articles, "
             "uploaded documents, or your general knowledge, explicitly inform "
