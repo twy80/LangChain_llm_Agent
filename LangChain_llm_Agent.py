@@ -711,8 +711,8 @@ def create_text(model):
         (
             "system",
             f"{st.session_state.ai_role[0]} Your goal is to provide answers "
-            "to human inquiries. You must inform the human about the basis "
-            "of your answers, i.e., whether they are based on internet search "
+            "to human inquiries. You should specify the source of "
+            "your answers, whether they are based on internet search "
             "results ('bing_search'), scientific articles from arxiv.org "
             "('arxiv'), wikipedia documents ('wikipedia'), uploaded "
             "documents ('retriever'), or your general knowledge. "
