@@ -614,8 +614,8 @@ def set_tools():
             "<small>To search the internet, obtain your Bing Subscription "
             "Key [here](https://portal.azure.com/) and enter it in the "
             "sidebar. Once entered, 'Search' will be displayed in the list "
-            "of tools below. Note also that PythonREPL from LangChain is "
-            "still in the experimental phase, so caution is advised.</small>",
+            "of tools. Note also that PythonREPL from LangChain is still "
+            "in the experimental phase, so caution is advised.</small>",
             unsafe_allow_html=True,
         )
     else:
