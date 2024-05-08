@@ -89,8 +89,8 @@ def initialize_session_state_variables():
         st.session_state.uploader_key = 0
 
     # variables for tools
-    if "tools" not in st.session_state:
-        st.session_state.tools = []
+    if "tool_names" not in st.session_state:
+        st.session_state.tool_names = [[], []]
 
     if "bing_subscription_validity" not in st.session_state:
         st.session_state.bing_subscription_validity = False
@@ -535,7 +535,7 @@ def reset_conversation():
     st.session_state.temperature[1] = st.session_state.temperature[0]
     st.session_state.audio_response = None
     st.session_state.vector_store_message = None
-    st.session_state.tools = []
+    st.session_state.tool_names[1] = st.session_state.tool_names[0]
     st.session_state.retriever_tool = None
     st.session_state.uploader_key = 0
     st.session_state.fig = []
@@ -545,6 +545,7 @@ def switch_between_apps():
     st.session_state.temperature[1] = st.session_state.temperature[0]
     st.session_state.image_source[1] = st.session_state.image_source[0]
     st.session_state.ai_role[1] = st.session_state.ai_role[0]
+    st.session_state.tool_names[1] = st.session_state.tool_names[0]
 
 
 def reset_qna_image():
@@ -564,6 +565,72 @@ def prepare_download():
     download_data = "\n\n".join(output_str.splitlines())
 
     return download_data
+
+
+def set_tools():
+    """
+    Set and return the tools for the agents. Tools that can be selected
+    are bing_search, arxiv, wikipedia, python_repl, and retrieval.
+    A valid Bing Subscription Key is required to use bing_search.
+    """
+
+    arxiv = load_tools(["arxiv"])[0]
+    wikipedia = load_tools(["wikipedia"])[0]
+    python_repl = PythonREPLTool()
+
+    tool_options = ["ArXiv", "Wikipedia", "Python_REPL", "Retrieval"]
+    tool_dictionary = {
+        "ArXiv": arxiv,
+        "Wikipedia": wikipedia,
+        "Python_REPL": python_repl,
+        "Retrieval": st.session_state.retriever_tool
+    }
+
+    if st.session_state.bing_subscription_validity:
+        search = BingSearchAPIWrapper()
+        bing_search = Tool(
+            name="bing_search",
+            description=(
+                "A search engine for comprehensive, accurate, and trusted results. "
+                "Useful for when you need to answer questions about current events. "
+                "Input should be a search query."
+            ),
+            func=partial(search.results, num_results=5),
+            args_schema=MySearchToolInput,
+        )
+        tool_options.insert(0, "Search")
+        tool_dictionary["Search"] = bing_search
+
+    st.write("")
+    st.write("**Tools**")
+    tool_names = st.multiselect(
+        label="assistant tools",
+        options=tool_options,
+        default=st.session_state.tool_names[1],
+        label_visibility="collapsed",
+    )
+    st.write(
+        "<small>To search the internet, obtain your Bing Subscription Key "
+        "[here](https://portal.azure.com/) and enter it in the sidebar. Once "
+        "entered, 'Search' will be displayed in the list of tools below. "
+        "Additionally, please note that PythonREPL from LangChain is still "
+        "in the experimental phase, so caution is advised.</small>",
+        unsafe_allow_html=True,
+    )
+
+    if "Retrieval" in tool_names:
+        # Get the retriever tool and save it to st.session_state.retriever_tool.
+        get_retriever()
+        if st.session_state.vector_store_message:
+            st.write(st.session_state.vector_store_message)
+
+    tools = [
+        tool_dictionary[key]
+        for key in tool_names if tool_dictionary[key] is not None
+    ]
+    st.session_state.tool_names[0] = tool_names
+
+    return tools
 
 
 def create_text(model):
@@ -636,64 +703,7 @@ def create_text(model):
         reset_conversation()
         st.rerun()
 
-    st.write("")
-    st.write("**Tools**")
-    tool_options = ["Search", "ArXiv", "Wikipedia", "Python_REPL", "Retrieval"]
-    selected_tools = st.multiselect(
-        label="assistant tools",
-        options=tool_options,
-        default=st.session_state.tools,
-        label_visibility="collapsed",
-    )
-    if selected_tools != st.session_state.tools:
-        st.session_state.tools = selected_tools
-        st.rerun()
-
-    if st.session_state.bing_subscription_validity:
-        search = BingSearchAPIWrapper()
-        bing_search = Tool(
-            name="bing_search",
-            description=(
-                "A search engine for comprehensive, accurate, and trusted results. "
-                "Useful for when you need to answer questions about current events. "
-                "Input should be a search query."
-            ),
-            func=partial(search.results, num_results=5),
-            args_schema=MySearchToolInput,
-        )
-    else:
-        bing_search = None
-
-    arxiv = load_tools(["arxiv"])[0]
-    wikipedia = load_tools(["wikipedia"])[0]
-
-    python_repl = PythonREPLTool()
-    if "Python_REPL" in selected_tools:
-        st.write(
-            "<small>PythonREPL from LangChain is still experimental, "
-            "and therefore caution is needed. Users are also advised "
-            "to choose gpt-4-turbo-preview with Python REPL.</small>",
-            unsafe_allow_html=True,
-        )
-
-    if "Retrieval" in selected_tools:
-        # Get the retriever tool and save it to st.session_state.retriever_tool.
-        get_retriever()
-        if st.session_state.vector_store_message:
-            st.write(st.session_state.vector_store_message)
-
-    # Tools to be used with the llm
-    tool_dictionary = {
-        "Search": bing_search,
-        "ArXiv": arxiv,
-        "Wikipedia": wikipedia,
-        "Python_REPL": python_repl,
-        "Retrieval": st.session_state.retriever_tool
-    }
-    tools = [
-        tool_dictionary[key]
-        for key in selected_tools if tool_dictionary[key] is not None
-    ]
+    tools = set_tools()
 
     # Prompts for the agents
     st.session_state.chat_prompt = ChatPromptTemplate.from_messages([
@@ -721,12 +731,7 @@ def create_text(model):
             "internet searches, scientific articles, Wikipedia documents, "
             "uploaded documents, or your general knowledge, explicitly inform "
             "the human that the answer could not be found. Also, if you use "
-            "'python_repl' for computation, show the Python code that you run. "
-            "When showing the Python code, encapsulate the code in Markdown "
-            "format, e.g.,\n\n"
-            "```python\n"
-            "....\n"
-            "```"
+            "'python_repl' for computation, show the Python code that you run."
         ),
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
