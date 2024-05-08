@@ -609,15 +609,21 @@ def set_tools():
         default=st.session_state.tool_names[1],
         label_visibility="collapsed",
     )
-    st.write(
-        "<small>To search the internet, obtain your Bing Subscription Key "
-        "[here](https://portal.azure.com/) and enter it in the sidebar. Once "
-        "entered, 'Search' will be displayed in the list of tools below. "
-        "Additionally, please note that PythonREPL from LangChain is still "
-        "in the experimental phase, so caution is advised.</small>",
-        unsafe_allow_html=True,
-    )
-
+    if "Search" not in tool_options:
+        st.write(
+            "<small>To search the internet, obtain your Bing Subscription "
+            "Key [here](https://portal.azure.com/) and enter it in the "
+            "sidebar. Once entered, 'Search' will be displayed in the list "
+            "of tools below. Note also that PythonREPL from LangChain is "
+            "still in the experimental phase, so caution is advised.</small>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.write(
+            "<small>PythonREPL from LangChain is still "
+            "in the experimental phase, so caution is advised.</small>",
+            unsafe_allow_html=True,
+        )
     if "Retrieval" in tool_names:
         # Get the retriever tool and save it to st.session_state.retriever_tool.
         get_retriever()
