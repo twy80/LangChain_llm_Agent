@@ -739,7 +739,7 @@ def create_text(model):
             "the human that the answer could not be found. Also, if you use "
             "'python_repl' for computation, show the Python code that you run."
         ),
-        MessagesPlaceholder(variable_name="chat_history"),
+        MessagesPlaceholder(variable_name="chat_history", optional=True),
         ("human", "{input}"),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ])
