@@ -257,23 +257,15 @@ def openai_query_image(image_url, query, model="gpt-4-vision-preview"):
 
     try:
         with st.spinner("AI is thinking..."):
-            response = st.session_state.openai.chat.completions.create(
-                model=model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": f"{query}"},
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"{image_url}"},
-                            },
-                        ],
-                    },
-                ],
-                max_tokens=300,
+            llm = ChatOpenAI(model=model, max_tokens=300)
+            message = HumanMessage(
+                content=[
+                    {"type": "text", "text": query},
+                    {"type": "image_url", "image_url": image_url},
+                ]
             )
-        generated_text = response.choices[0].message.content
+            response = llm.invoke([message])
+        generated_text = response.content
     except Exception as e:
         generated_text = None
         st.error(f"An error occurred: {e}", icon="🚨")
