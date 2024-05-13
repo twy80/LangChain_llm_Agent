@@ -105,10 +105,6 @@ def initialize_session_state_variables():
         st.session_state.fig = []
 
 
-class MySearchToolInput(BaseModel):
-    query: str = Field(description="search query to look up")
-
-
 class StreamHandler(BaseCallbackHandler):
     def __init__(self, container, initial_text=""):
         self.container = container
@@ -565,6 +561,9 @@ def set_tools():
     are bing_search, arxiv, wikipedia, python_repl, and retrieval.
     A valid Bing Subscription Key is required to use bing_search.
     """
+
+    class MySearchToolInput(BaseModel):
+        query: str = Field(description="search query to look up")
 
     arxiv = load_tools(["arxiv"])[0]
     wikipedia = load_tools(["wikipedia"])[0]
