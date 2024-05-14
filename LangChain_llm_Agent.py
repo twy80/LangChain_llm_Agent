@@ -155,7 +155,7 @@ def check_api_keys():
     st.session_state.ready = False
 
 
-def run_agent(query, model, tools=[], temperature=0.7):
+def run_agent(query, model, tools=None, temperature=0.7):
     """
     Generate text based on user queries.
 
@@ -171,6 +171,9 @@ def run_agent(query, model, tools=[], temperature=0.7):
     The chat prompt and message history are stored in
     st.session_state variables.
     """
+
+    if tools is None:
+        tools = []
 
     llm = ChatOpenAI(
         temperature=temperature,
