@@ -1351,7 +1351,7 @@ def create_text_image() -> None:
                 "True" if langsmith == "On" else "False"
             )
         st.write("")
-        st.write("**Models**")
+        st.write("**Model**")
         if choice_api == "My keys":
             model_options=(
                 "gpt-3.5-turbo",
