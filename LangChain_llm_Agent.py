@@ -1355,7 +1355,7 @@ def create_text_image() -> None:
         if choice_api == "My keys":
             model_options=(
                 "gpt-3.5-turbo",
-                "gpt-4-turbo-preview",
+                "gpt-4o",
                 "gpt-4-vision-preview",
                 "dall-e-3",
                 "gemini-1.0-pro-latest",
@@ -1366,7 +1366,7 @@ def create_text_image() -> None:
             if st.session_state.model_type == "GPT Models from OpenAI":
                 model_options=(
                     "gpt-3.5-turbo",
-                    "gpt-4-turbo-preview",
+                    "gpt-4o",
                     "gpt-4-vision-preview",
                     "dall-e-3",
                 )
@@ -1386,7 +1386,7 @@ def create_text_image() -> None:
 
     if model in (
         "gpt-3.5-turbo",
-        "gpt-4-turbo-preview",
+        "gpt-4o",
         "gemini-1.0-pro-latest",
         "gemini-1.5-pro-latest"
     ):
