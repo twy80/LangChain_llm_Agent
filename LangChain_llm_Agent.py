@@ -5,54 +5,64 @@ LangChain Agents (by T.-W. Yoon, Mar. 2024)
 import streamlit as st
 import os, base64, re, requests, datetime, time
 import matplotlib.pyplot as plt
-from io import BytesIO, StringIO
+from io import BytesIO
 from functools import partial
-from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
 from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_google_community import GoogleSearchAPIWrapper
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.schema import HumanMessage, AIMessage, SystemMessage
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain.schema import HumanMessage, AIMessage
 from langchain_community.utilities import BingSearchAPIWrapper
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
 from langchain.tools import Tool
 from langchain.tools.retriever import create_retriever_tool
 from langchain.agents import create_openai_tools_agent
+from langchain.agents import create_react_agent
 # from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
 from langchain.agents import load_tools
 from langchain_experimental.tools import PythonREPLTool
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.pydantic_v1 import BaseModel, Field
+# The following are for type annotations
+from typing import Union, List, Literal, Optional
+from streamlit.runtime.uploaded_file_manager import UploadedFile
+from openai._legacy_response import HttpxBinaryResponseContent
 
 
-def initialize_session_state_variables():
+def initialize_session_state_variables() -> None:
     """
     Initialize all the session state variables.
     """
 
-    # variables for using OpenAI
+    # Variables for chatbot
     if "ready" not in st.session_state:
         st.session_state.ready = False
 
     if "openai" not in st.session_state:
         st.session_state.openai = None
 
-    if "message_history" not in st.session_state:
-        st.session_state.message_history = ChatMessageHistory()
+    if "history" not in st.session_state:
+        st.session_state.history = []
 
-    # variables for chatbot
+    if "model_type" not in st.session_state:
+        st.session_state.model_type = "GPT Models from OpenAI"
+
+    if "agent_type" not in st.session_state:
+        st.session_state.agent_type = 2 * ["Tool Calling"]
+
     if "ai_role" not in st.session_state:
-        st.session_state.ai_role = 2 * ["You are a helpful assistant."]
+        st.session_state.ai_role = 2 * ["You are a helpful AI assistant."]
 
     if "prompt_exists" not in st.session_state:
         st.session_state.prompt_exists = False
@@ -60,7 +70,7 @@ def initialize_session_state_variables():
     if "temperature" not in st.session_state:
         st.session_state.temperature = [0.7, 0.7]
 
-    # variables for audio and image
+    # Variables for audio and image
     if "audio_bytes" not in st.session_state:
         st.session_state.audio_bytes = None
 
@@ -88,12 +98,15 @@ def initialize_session_state_variables():
     if "uploader_key" not in st.session_state:
         st.session_state.uploader_key = 0
 
-    # variables for tools
+    # Variables for tools
     if "tool_names" not in st.session_state:
         st.session_state.tool_names = [[], []]
 
     if "bing_subscription_validity" not in st.session_state:
         st.session_state.bing_subscription_validity = False
+
+    if "google_cse_id_validity" not in st.session_state:
+        st.session_state.google_cse_id_validity = False
 
     if "vector_store_message" not in st.session_state:
         st.session_state.vector_store_message = None
@@ -115,7 +128,7 @@ class StreamHandler(BaseCallbackHandler):
         self.container.markdown(self.text)
 
 
-def is_openai_api_key_valid(openai_api_key):
+def is_openai_api_key_valid(openai_api_key: str) -> bool:
     """
     Return True if the given OpenAI API key is valid.
     """
@@ -130,7 +143,7 @@ def is_openai_api_key_valid(openai_api_key):
     return response.status_code == 200
 
 
-def is_bing_subscription_key_valid(bing_subscription_key):
+def is_bing_subscription_key_valid(bing_subscription_key: str) -> bool:
     """
     Return True if the given Bing subscription key is valid.
     """
@@ -138,32 +151,100 @@ def is_bing_subscription_key_valid(bing_subscription_key):
     if not bing_subscription_key:
         return False
     try:
-        bing_search = BingSearchAPIWrapper(
+        search = BingSearchAPIWrapper(
             bing_subscription_key=bing_subscription_key,
             bing_search_url="https://api.bing.microsoft.com/v7.0/search",
             k=1
         )
-        bing_search.run("Where can I get a Bing subscription key?")
+        search.run("Where can I get a Bing subscription key?")
     except:
         return False
     else:
         return True
 
 
-def check_api_keys():
+def is_google_api_key_valid(google_api_key: str) -> bool:
+    """
+    Return True if the given Google API key is valid.
+    """
+
+    if not google_api_key:
+        return False
+
+    gemini_llm = ChatGoogleGenerativeAI(
+        model="gemini-pro", google_api_key=google_api_key
+    )
+    try:
+        gemini_llm.invoke("Hello")
+    except:
+        return False
+    else:
+        return True
+
+
+def are_google_api_key_cse_id_valid(
+    google_api_key: str, google_cse_id: str
+) -> bool:
+
+    """
+    Return True if the given Google API key and CSE ID are valid.
+    """
+
+    if google_api_key and google_cse_id:
+        try:
+            search = GoogleSearchAPIWrapper(
+                google_api_key=google_api_key,
+                google_cse_id=google_cse_id,
+                k=1
+            )
+            search.run("Where can I get a Google CSE ID?")
+        except:
+            return False
+        else:
+            return True
+    else:
+        return False
+
+
+def check_api_keys() -> None:
     # Unset this flag to check the validity of the OpenAI API key
     st.session_state.ready = False
 
 
-def run_agent(query, model, tools=None, temperature=0.7):
+def message_history_to_string(extra_space: bool=True) -> str:
+    """
+    Return a string of the chat history contained in
+    st.session_state.history.
+    """
+
+    history_list = []
+    for msg in st.session_state.history:
+        if isinstance(msg, HumanMessage):
+            history_list.append(f"Human: {msg.content}")
+        else:
+            history_list.append(f"AI: {msg.content}")
+    new_lines = "\n\n" if extra_space else "\n"
+
+    return new_lines.join(history_list)
+
+
+def run_agent(
+    query: str,
+    model: str,
+    tools: List[Tool]=None,
+    temperature: float=0.7,
+    agent_type: Literal["Tool Calling", "ReAct"]="Tool Calling",
+) -> str:
+
     """
     Generate text based on user queries.
 
     Args:
-        query (string): User's query
-        model (string): LLM like "gpt-3.5-turbo"
-        tools (list): sublist of [bing_search, arxiv, retrieval, python_repl]
-        temperature (float): Value between 0 and 1. Defaults to 0.7
+        query: User's query
+        model: LLM like "gpt-3.5-turbo"
+        tools: list of tools such as Search and Retrieval
+        temperature: Value between 0 and 1. Defaults to 0.7
+        agent_type: 'Tool Calling' or 'ReAct'
 
     Return:
         generated text
@@ -175,35 +256,45 @@ def run_agent(query, model, tools=None, temperature=0.7):
     if tools is None:
         tools = []
 
-    llm = ChatOpenAI(
+    ChatModel = ChatOpenAI if model.startswith("gpt-") else ChatGoogleGenerativeAI
+    llm = ChatModel(
         temperature=temperature,
         model=model,
         streaming=True,
         callbacks=[StreamHandler(st.empty())]
     )
+
     if tools:
-        agent = create_openai_tools_agent(
-            llm, tools, st.session_state.agent_prompt
-        )
+        if agent_type == "Tool Calling":
+            agent = create_openai_tools_agent(
+                llm, tools, st.session_state.agent_prompt
+            )
+        else:
+            agent = create_react_agent(
+                llm, tools, st.session_state.agent_prompt
+            )
         agent_executor = AgentExecutor(
             agent=agent, tools=tools, max_iterations=5, verbose=False,
-            agent_executor_kwargs={"handle_parsing_errors": True},
+            handle_parsing_errors=True,
         )
     else:
         agent_executor = st.session_state.chat_prompt | llm
 
-    agent_with_chat_history = RunnableWithMessageHistory(
-        agent_executor,
-        lambda session_id: st.session_state.message_history,
-        input_messages_key="input",
-        history_messages_key="chat_history",
-    )
     try:
-        response = agent_with_chat_history.invoke(
-            {"input": query},
-            config={"configurable": {"session_id": "chat"}},
+        if agent_type == "Tool Calling":
+            chat_history = st.session_state.history
+        else:
+            chat_history = message_history_to_string()
+
+        response = agent_executor.invoke(
+            {
+                "chat_history": chat_history,
+                "input": query,
+            }
         )
         generated_text = response["output"] if tools else response.content
+        st.session_state.history.append(HumanMessage(content=query))
+        st.session_state.history.append(AIMessage(content=generated_text))
     except Exception as e:
         generated_text = None
         st.error(f"An error occurred: {e}", icon="🚨")
@@ -211,14 +302,17 @@ def run_agent(query, model, tools=None, temperature=0.7):
     return generated_text
 
 
-def openai_create_image(description, model="dall-e-3", size="1024x1024"):
+def openai_create_image(
+    description: str, model: str="dall-e-3", size: str="1024x1024"
+) -> Optional[str]:
+
     """
     Generate image based on user description.
 
     Args:
-        description (string): User description
-        model (string): Default set to "dall-e-3"
-        size (string): Pixel size of the generated image
+        description: User description
+        model: Default set to "dall-e-3"
+        size: Pixel size of the generated image
 
     Return:
         URL of the generated image
@@ -241,22 +335,30 @@ def openai_create_image(description, model="dall-e-3", size="1024x1024"):
     return image_url
 
 
-def openai_query_image(image_url, query, model="gpt-4-vision-preview"):
+def query_image(
+    image_url: str,
+    query: str,
+    model: str="gpt-4-vision-preview",
+    temperature: float=0.7,
+) -> Optional[str]:
+
     """
     Answer the user's query about the given image from a URL.
 
     Args:
-        image_url (string): URL of the image
-        query (string): the user's query
-        model (string): default set to "gpt-4-vision-preview"
+        image_url: URL of the image
+        query: the user's query
+        model: default set to "gpt-4-vision-preview"
 
     Return:
         text as an answer to the user's query.
     """
 
+    ChatModel = ChatOpenAI if model.startswith("gpt-") else ChatGoogleGenerativeAI
+    llm = ChatModel(model=model, temperature=temperature)
+
     try:
         with st.spinner("AI is thinking..."):
-            llm = ChatOpenAI(model=model, max_tokens=300)
             message = HumanMessage(
                 content=[
                     {"type": "text", "text": query},
@@ -272,7 +374,7 @@ def openai_query_image(image_url, query, model="gpt-4-vision-preview"):
     return generated_text
 
 
-def get_vector_store(uploaded_files):
+def get_vector_store(uploaded_files: List[UploadedFile]) -> Optional[FAISS]:
     """
     Take a list of UploadedFile objects as input,
     and return a FAISS vector store.
@@ -318,7 +420,12 @@ def get_vector_store(uploaded_files):
             )
             doc = text_splitter.split_documents(documents)
             # Create a FAISS vector database.
-            embeddings = OpenAIEmbeddings()
+            if st.session_state.model_type == "GPT Models from OpenAI":
+                embeddings = OpenAIEmbeddings()
+            else:
+                embeddings = GoogleGenerativeAIEmbeddings(
+                    model="models/embedding-001"
+                )
             vector_store = FAISS.from_documents(doc, embeddings)
     except Exception as e:
         vector_store = None
@@ -332,7 +439,7 @@ def get_vector_store(uploaded_files):
     return vector_store
 
 
-def get_retriever():
+def get_retriever() -> None:
     """
     Upload document(s), create a vector store, prepare a retriever tool,
     save the tool to the variable st.session_state.retriever_tool
@@ -371,7 +478,7 @@ def get_retriever():
             st.session_state.uploader_key += 1
 
 
-def display_text_with_equations(text):
+def display_text_with_equations(text: str):
     # Replace inline LaTeX equation delimiters \\( ... \\) with $
     modified_text = text.replace("\\(", "$").replace("\\)", "$")
 
@@ -382,7 +489,7 @@ def display_text_with_equations(text):
     st.markdown(modified_text)
 
 
-def read_audio(audio_bytes):
+def read_audio(audio_bytes: bytes) -> Optional[str]:
     """
     Read audio bytes and return the corresponding text.
     """
@@ -401,7 +508,7 @@ def read_audio(audio_bytes):
     return text
 
 
-def input_from_mic():
+def input_from_mic() -> Optional[str]:
     """
     Convert audio input from mic to text and return it.
     If there is no audio input, None is returned.
@@ -420,7 +527,7 @@ def input_from_mic():
         return read_audio(audio_bytes)
 
 
-def perform_tts(text):
+def perform_tts(text: str) -> Optional[HttpxBinaryResponseContent]:
     """
     Take text as input, perform text-to-speech (TTS),
     and return an audio_response.
@@ -440,7 +547,7 @@ def perform_tts(text):
     return audio_response
 
 
-def play_audio(audio_response):
+def play_audio(audio_response: HttpxBinaryResponseContent) -> None:
     """
     Take an audio response (a bytes-like object)
     from TTS as input, and play the audio.
@@ -463,7 +570,7 @@ def play_audio(audio_response):
     st.markdown(md, unsafe_allow_html=True)
 
 
-def image_to_base64(image):
+def image_to_base64(image: Image) -> str:
     """
     Convert an image object from PIL to a base64 encoded image,
     and return the resulting encoded image in the form of a URL.
@@ -486,7 +593,7 @@ def image_to_base64(image):
     return f"data:image/jpeg;base64,{base64_image}"
 
 
-def shorten_image(image, max_pixels=1024):
+def shorten_image(image: Image, max_pixels: int=1024) -> Image:
     """
     Take an Image object as input, and shorten the image size
     if the image is greater than max_pixels x max_pixels.
@@ -503,7 +610,7 @@ def shorten_image(image, max_pixels=1024):
     return image
 
 
-def is_url(text):
+def is_url(text: str) -> bool:
     """
     Determine whether text is a URL or not.
     """
@@ -517,8 +624,12 @@ def is_url(text):
         return False
 
 
-def reset_conversation():
-    st.session_state.message_history.clear()
+def reset_conversation() -> None:
+    """
+    Reset the session_state variables for resetting the conversation.
+    """
+
+    st.session_state.history = []
     st.session_state.ai_role[1] = st.session_state.ai_role[0]
     st.session_state.prompt_exists = False
     st.session_state.human_enq = []
@@ -527,42 +638,35 @@ def reset_conversation():
     st.session_state.audio_response = None
     st.session_state.vector_store_message = None
     st.session_state.tool_names[1] = st.session_state.tool_names[0]
+    st.session_state.agent_type[1] = st.session_state.agent_type[0]
     st.session_state.retriever_tool = None
     st.session_state.uploader_key = 0
     st.session_state.fig = []
 
 
-def switch_between_apps():
+def switch_between_apps() -> None:
+    """
+    Keep the chat settings when switching the mode.
+    """
+
     st.session_state.temperature[1] = st.session_state.temperature[0]
     st.session_state.image_source[1] = st.session_state.image_source[0]
     st.session_state.ai_role[1] = st.session_state.ai_role[0]
     st.session_state.tool_names[1] = st.session_state.tool_names[0]
+    st.session_state.agent_type[1] = st.session_state.agent_type[0]
 
 
-def reset_qna_image():
+def reset_qna_image() -> None:
+    # Reset the question and answer for the image.
     st.session_state.uploaded_image = None
     st.session_state.qna = {"question": "", "answer": ""}
 
 
-def prepare_download():
+def set_tools() -> List[Tool]:
     """
-    Return conversation as a series of strings to be downloaded.
-    """
-
-    output = StringIO()
-    with redirect_stdout(output):
-        print(st.session_state.message_history)
-    output_str = output.getvalue()
-    download_data = "\n\n".join(output_str.splitlines())
-
-    return download_data
-
-
-def set_tools():
-    """
-    Set and return the tools for the agents. Tools that can be selected
-    are bing_search, arxiv, wikipedia, python_repl, and retrieval.
-    A valid Bing Subscription Key is required to use bing_search.
+    Set and return the tools for the agent. Tools that can be selected
+    are internet_search, arxiv, wikipedia, python_repl, and retrieval.
+    A Bing Subscription Key or Google CSE ID is required for internet_search.
     """
 
     class MySearchToolInput(BaseModel):
@@ -582,8 +686,14 @@ def set_tools():
 
     if st.session_state.bing_subscription_validity:
         search = BingSearchAPIWrapper()
-        bing_search = Tool(
-            name="bing_search",
+    elif st.session_state.google_cse_id_validity:
+        search = GoogleSearchAPIWrapper()
+    else:
+        search = None
+
+    if search is not None:
+        internet_search = Tool(
+            name="internet_search",
             description=(
                 "A search engine for comprehensive, accurate, and trusted results. "
                 "Useful for when you need to answer questions about current events. "
@@ -593,7 +703,7 @@ def set_tools():
             args_schema=MySearchToolInput,
         )
         tool_options.insert(0, "Search")
-        tool_dictionary["Search"] = bing_search
+        tool_dictionary["Search"] = internet_search
 
     st.write("")
     st.write("**Tools**")
@@ -606,10 +716,12 @@ def set_tools():
     if "Search" not in tool_options:
         st.write(
             "<small>To search the internet, obtain your Bing Subscription "
-            "Key [here](https://portal.azure.com/) and enter it in the "
-            "sidebar. Once entered, 'Search' will be displayed in the list "
-            "of tools. Note also that PythonREPL from LangChain is still "
-            "in the experimental phase, so caution is advised.</small>",
+            "Key [here](https://portal.azure.com/) or Google CSE ID "
+            "[here](https://programmablesearchengine.google.com/about/), "
+            "and enter it in the sidebar. Once entered, 'Search' will be "
+            "displayed in the list of tools. Note also that PythonREPL from "
+            "LangChain is still in the experimental phase, so caution is "
+            "advised.</small>",
             unsafe_allow_html=True,
         )
     else:
@@ -633,42 +745,164 @@ def set_tools():
     return tools
 
 
-def create_text(model):
+def set_prompts(agent_type: Literal["Tool Calling", "ReAct"]) -> None:
+    """
+    Set chat and agent prompts for two different types of agents:
+    Tool Calling and ReAct.
+    """
+
+    if agent_type == "Tool Calling":
+        st.session_state.chat_prompt = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                f"{st.session_state.ai_role[0]} Your goal is to provide "
+                "answers to human inquiries. Should the information not "
+                "be available, please inform the human explicitly that "
+                "the answer could not be found."
+            ),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}"),
+        ])
+        st.session_state.agent_prompt = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                f"{st.session_state.ai_role[0]} Your goal is to provide "
+                "answers to human inquiries. You should specify the source "
+                "of your answers, whether they are based on internet search "
+                "results ('internet_search'), scientific articles from "
+                "arxiv.org ('arxiv'), Wikipedia documents ('wikipedia'), "
+                "uploaded documents ('retriever'), or your general knowledge. "
+                "Use Markdown syntax and include relevant sources, such as "
+                "links (URLs), following MLA format. If the information is "
+                "not available through internet searches, scientific "
+                "articles, Wikipedia documents, uploaded documents, or your "
+                "general knowledge, explicitly inform the human that the "
+                "answer could not be found. Also, if you use 'python_repl' "
+                "for computation, show the Python code that you run."
+            ),
+            MessagesPlaceholder(variable_name="chat_history", optional=True),
+            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
+    else:
+        st.session_state.chat_prompt = ChatPromptTemplate.from_template(
+            f"{st.session_state.ai_role[0]} "
+            "Your goal is to provide answers to human inquiries. "
+            "Should the information not be available, inform the human "
+            "explicitly that the answer could not be found.\n\n"
+            "{chat_history}\n\nHuman: {input}\n\n"
+            "AI: "
+        )
+        st.session_state.agent_prompt = ChatPromptTemplate.from_template(
+            f"{st.session_state.ai_role[0]} "
+            "Your goal is to provide answers to human inquiries. "
+            "When giving your answers, tell the human what your response "
+            "is based on and which tools you use. Use Markdown syntax "
+            "and include relevant sources, such as links (URLs), following "
+            "MLA format. Should the information not be available, inform "
+            "the human explicitly that the answer could not be found.\n\n"
+            "TOOLS:\n"
+            "------\n\n"
+            "You have access to the following tools:\n\n"
+            "{tools}\n\n"
+            "To use a tool, please use the following format:\n\n"
+            "```\n"
+            "Thought: Do I need to use a tool? Yes\n"
+            "Action: the action to take, should be one of [{tool_names}]\n"
+            "Action Input: the input to the action\n"
+            "Observation: the result of the action\n"
+            "```\n\n"
+            "When you have a response to say to the Human, "
+            "or if you do not need to use a tool, you MUST use "
+            "the format:\n\n"
+            "```\n"
+            "Thought: Do I need to use a tool? No\n"
+            "Final Answer: [your response here]\n"
+            "```\n\n"
+            "Begin!\n\n"
+            "Previous conversation history:\n\n"
+            "{chat_history}\n\n"
+            "New input: {input}\n"
+            "{agent_scratchpad}"
+        )
+
+
+def print_conversation(no_of_msgs: Union[Literal["All"], int]) -> None:
+    """
+    Print the conversation stored in st.session_state.history.
+    """
+
+    if no_of_msgs == "All":
+        no_of_msgs = len(st.session_state.history)
+    for msg in st.session_state.history[-no_of_msgs:]:
+        if isinstance(msg, HumanMessage):
+            with st.chat_message("human"):
+                st.write(msg.content)
+        elif re.match(
+            r"^Figure \d+ generated by AI\.$", msg.content
+        ):  # Check to see if the message points to a figure object
+            fig_number = re.search(r'\bFigure (\d+)\b', msg.content).group(1)
+            st.pyplot(st.session_state.fig[int(fig_number) - 1])
+        else:
+            with st.chat_message("ai"):
+                display_text_with_equations(msg.content)
+
+    # Play TTS
+    if (
+        st.session_state.model_type == "GPT Models from OpenAI"
+        and st.session_state.audio_response is not None
+    ):
+        play_audio(st.session_state.audio_response)
+        st.session_state.audio_response = None
+
+
+def create_text(model: str) -> None:
     """
     Take an LLM as input and generate text based on user input
     by calling run_agent().
     """
 
     # initial system prompts
-    general_role = "You are a helpful assistant."
+    general_role = "You are a helpful AI assistant."
     english_teacher = (
-        "You are an English teacher who analyzes texts and corrects "
+        "You are an AI English teacher who analyzes texts and corrects "
         "any grammatical issues if necessary."
     )
     translator = (
-        "You are a translator who translates English into Korean "
+        "You are an AI translator who translates English into Korean "
         "and Korean into English."
     )
     coding_adviser = (
-        "You are an expert in coding who provides advice on "
+        "You are an AI expert in coding who provides advice on "
         "good coding styles."
     )
-    science_assistant = "You are a science assistant."
+    science_assistant = "You are an AI science assistant."
     roles = (
         general_role, english_teacher, translator,
         coding_adviser, science_assistant
     )
 
     with st.sidebar:
-        st.write("")
-        st.write("**Text to Speech**")
-        st.session_state.tts = st.radio(
-            label="$\\hspace{0.08em}\\texttt{TTS}$",
-            options=("Enabled", "Disabled", "Auto"),
-            # horizontal=True,
-            index=1,
-            label_visibility="collapsed",
-        )
+        if st.session_state.model_type == "GPT Models from OpenAI":
+            if not model.startswith("gemini-"):
+                type_options = ("Tool Calling", "ReAct")
+                st.write("")
+                st.write("**Agent Type**")
+                st.session_state.agent_type[0] = st.sidebar.radio(
+                    label="Agent Type",
+                    options=type_options,
+                    index=type_options.index(st.session_state.agent_type[1]),
+                    label_visibility="collapsed",
+                )
+            st.write("")
+            st.write("**Text to Speech**")
+            st.session_state.tts = st.radio(
+                label="TTS",
+                options=("Enabled", "Disabled", "Auto"),
+                # horizontal=True,
+                index=1,
+                label_visibility="collapsed",
+            )
         st.write("")
         st.write("**Temperature**")
         st.session_state.temperature[0] = st.slider(
@@ -703,89 +937,43 @@ def create_text(model):
         reset_conversation()
         st.rerun()
 
-    tools = set_tools()
-
-    # Prompts for the agents
-    st.session_state.chat_prompt = ChatPromptTemplate.from_messages([
-        (
-            "system",
-            f"{st.session_state.ai_role[0]} Your goal is to provide answers "
-            "to human inquiries. Should the information not be available, "
-            "please inform the human explicitly that the answer could "
-            "not be found."
-        ),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}"),
-    ])
-    st.session_state.agent_prompt = ChatPromptTemplate.from_messages([
-        (
-            "system",
-            f"{st.session_state.ai_role[0]} Your goal is to provide answers "
-            "to human inquiries. You should specify the source of "
-            "your answers, whether they are based on internet search "
-            "results ('bing_search'), scientific articles from arxiv.org "
-            "('arxiv'), Wikipedia documents ('wikipedia'), uploaded "
-            "documents ('retriever'), or your general knowledge. Use Markdown "
-            "syntax and include relevant sources, such as links (URLs), "
-            "following MLA format. If the information is not available through "
-            "internet searches, scientific articles, Wikipedia documents, "
-            "uploaded documents, or your general knowledge, explicitly inform "
-            "the human that the answer could not be found. Also, if you use "
-            "'python_repl' for computation, show the Python code that you run."
-        ),
-        MessagesPlaceholder(variable_name="chat_history", optional=True),
-        ("human", "{input}"),
-        MessagesPlaceholder(variable_name="agent_scratchpad"),
-    ])
-
     st.write("")
-    left, right = st.columns([4, 7])
-    left.write("##### Conversation with AI")
-    right.write("Click on the mic icon and speak, or type text below.")
+    st.write("##### Conversation with AI")
 
-    # Print conversations
-    if no_of_msgs == "All":
-        no_of_msgs = len(st.session_state.message_history.messages)
-    for msg in st.session_state.message_history.messages[-no_of_msgs:]:
-        if isinstance(msg, HumanMessage):
-            with st.chat_message("human"):
-                st.write(msg.content)
-        elif re.match(
-            r"^Figure \d+ generated by AI\.$", msg.content
-        ):  # Check to see if the message points to a figure object
-            fig_number = re.search(r'\bFigure (\d+)\b', msg.content).group(1)
-            st.pyplot(st.session_state.fig[int(fig_number) - 1])
-        else:
-            with st.chat_message("ai"):
-                display_text_with_equations(msg.content)
-
-    # Play TTS
-    if st.session_state.audio_response is not None:
-        play_audio(st.session_state.audio_response)
-        st.session_state.audio_response = None
+    # Print conversation
+    print_conversation(no_of_msgs)
 
     # Reset or download the conversation
-    left, right = st.columns([4, 7])
-    download_data = prepare_download()
+    left, right = st.columns(2)
     left.button(
         label="$~\:\,\,$Reset$~\:\,\,$",
         on_click=reset_conversation
     )
     right.download_button(
         label="Download",
-        data=download_data,
+        data=message_history_to_string(),
         file_name="conversation_with_agent.txt",
         mime="text/plain"
     )
 
-    audio_input = input_from_mic()
-    if audio_input is not None:
-        query = audio_input
-        st.session_state.prompt_exists = True
-        st.session_state.mic_used = True
+    if st.session_state.model_type == "GPT Models from OpenAI":
+        audio_input = input_from_mic()
+        if audio_input is not None:
+            query = audio_input
+            st.session_state.prompt_exists = True
+            st.session_state.mic_used = True
 
     # Use your keyboard
     text_input = st.chat_input(placeholder="Enter your query")
+
+    # Set the agent tools and prompt
+    if model.startswith("gemini-"):
+        agent_type = "ReAct"
+    else:
+        agent_type = st.session_state.agent_type[0]
+
+    set_prompts(agent_type)
+    tools = set_tools()
 
     if text_input:
         query = text_input.strip()
@@ -801,16 +989,22 @@ def create_text(model):
                 model,
                 tools=tools,
                 temperature=st.session_state.temperature[0],
+                agent_type=agent_type,
             )
             fig = plt.gcf()
             if fig and fig.get_axes():
                 fig_index = len(st.session_state.fig)
-                st.session_state.message_history.add_ai_message(
-                    f"Figure {fig_index + 1} generated by AI."
+                st.session_state.history.append(
+                    AIMessage(
+                        content=f"Figure {fig_index + 1} generated by AI."
+                    )
                 )
                 st.session_state.fig.append(fig)
 
-        if generated_text is not None:
+        if (
+            st.session_state.model_type == "GPT Models from OpenAI"
+            and generated_text is not None
+        ):
             # TTS under two conditions
             cond1 = st.session_state.tts == "Enabled"
             cond2 = st.session_state.tts == "Auto" and st.session_state.mic_used
@@ -824,7 +1018,7 @@ def create_text(model):
             st.rerun()
 
 
-def create_text_with_image(model):
+def create_text_with_image(model: str) -> None:
     """
     Respond to the user's query about the image from a URL or uploaded image.
     """
@@ -889,10 +1083,11 @@ def create_text_with_image(model):
                 display_text_with_equations(st.session_state.qna["answer"])
 
         # Use your microphone
-        audio_input = input_from_mic()
-        if audio_input is not None:
-            st.session_state.qna["question"] = audio_input
-            st.session_state.prompt_exists = True
+        if st.session_state.model_type == "GPT Models from OpenAI":
+            audio_input = input_from_mic()
+            if audio_input is not None:
+                st.session_state.qna["question"] = audio_input
+                st.session_state.prompt_exists = True
 
         # Use your keyboard
         text_input = st.chat_input(
@@ -903,10 +1098,11 @@ def create_text_with_image(model):
             st.session_state.prompt_exists = True
 
         if st.session_state.prompt_exists:
-            generated_text = openai_query_image(
+            generated_text = query_image(
                 image_url=st.session_state.uploaded_image,
                 query=st.session_state.qna["question"],
-                model=model
+                model=model,
+                temperature=st.session_state.temperature[0],
             )
 
             st.session_state.prompt_exists = False
@@ -915,7 +1111,7 @@ def create_text_with_image(model):
                 st.rerun()
 
 
-def create_image(model):
+def create_image(model: str) -> None:
     """
     Generate image based on user description by calling openai_create_image().
     """
@@ -940,10 +1136,11 @@ def create_image(model):
         st.image(image=st.session_state.image_url, use_column_width=True)
     
     # Get an image description using the microphone
-    audio_input = input_from_mic()
-    if audio_input is not None:
-        st.session_state.image_description = audio_input
-        st.session_state.prompt_exists = True
+    if st.session_state.model_type == "GPT Models from OpenAI":
+        audio_input = input_from_mic()
+        if audio_input is not None:
+            st.session_state.image_description = audio_input
+            st.session_state.prompt_exists = True
 
     # Get an image description using the keyboard
     text_input = st.chat_input(
@@ -962,7 +1159,7 @@ def create_image(model):
             st.rerun()
 
 
-def create_text_image():
+def create_text_image() -> None:
     """
     Generate text or image by using llm models "gpt-3.5-turbo",
     "gpt-4-turbo-preview", "gpt-4-vision-preview", or "dall-e-3",
@@ -977,76 +1174,138 @@ def create_text_image():
         st.write("")
         st.write("**API Key Selection**")
         choice_api = st.sidebar.radio(
-            label="$\\hspace{0.25em}\\texttt{Choice of API}$",
+            label="Choice of API",
             options=("Your keys", "My keys"),
             label_visibility="collapsed",
             horizontal=True,
         )
 
         if choice_api == "Your keys":
-            validity = "(Verified)" if st.session_state.ready else ""
-            st.write(
-                "**OpenAI API Key** ",
-                f"<small>:blue[{validity}]</small>",
-                unsafe_allow_html=True
-            )
-            openai_api_key = st.text_input(
-                label="$\\textsf{Your OPenAI API Key}$",
-                type="password",
-                placeholder="sk-",
+            st.write("")
+            st.write("**Model Type**")
+            st.session_state.model_type = st.sidebar.radio(
+                label="Model type",
+                options=(
+                    "GPT Models from OpenAI", "Gemini Models from Google"
+                ),
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
-            if st.session_state.bing_subscription_validity:
-                validity = "(Verified)"
+            st.write("")
+            if st.session_state.model_type == "GPT Models from OpenAI":
+                validity = "(Verified)" if st.session_state.ready else ""
+                st.write(
+                    "**OpenAI API Key** ",
+                    f"<small>:blue[{validity}]</small>",
+                    unsafe_allow_html=True
+                )
+                openai_api_key = st.text_input(
+                    label="OpenAI API Key",
+                    type="password",
+                    on_change=check_api_keys,
+                    label_visibility="collapsed",
+                )
+                if st.session_state.bing_subscription_validity:
+                    validity = "(Verified)"
+                else:
+                    validity = ""
+                st.write(
+                    "**Bing Subscription Key** ",
+                    f"<small>:blue[{validity}]</small>",
+                    unsafe_allow_html=True
+                )
+                bing_subscription_key = st.text_input(
+                    label="Bing Subscription Key",
+                    type="password",
+                    value="",
+                    on_change=check_api_keys,
+                    label_visibility="collapsed",
+                )
             else:
-                validity = ""
-            st.write(
-                "**Bing Subscription Key** ",
-                f"<small>:blue[{validity}]</small>",
-                unsafe_allow_html=True
-            )
-            bing_subscription_key = st.text_input(
-                label="$\\textsf{Your Bing Subscription Key}$",
-                type="password",
-                value="",
-                on_change=check_api_keys,
-                label_visibility="collapsed",
-            )
+                validity = "(Verified)" if st.session_state.ready else ""
+                st.write(
+                    "**Google API Key** ",
+                    f"<small>:blue[{validity}]</small>",
+                    unsafe_allow_html=True
+                )
+                google_api_key = st.text_input(
+                    label="Google API Key",
+                    type="password",
+                    on_change=check_api_keys,
+                    label_visibility="collapsed",
+                )
+                if st.session_state.google_cse_id_validity:
+                    validity = "(Verified)"
+                else:
+                    validity = ""
+                st.write(
+                    "**Google CSE ID** ",
+                    f"<small>:blue[{validity}]</small>",
+                    unsafe_allow_html=True
+                )
+                google_cse_id = st.text_input(
+                    label="Google CSE ID",
+                    type="password",
+                    value="",
+                    on_change=check_api_keys,
+                    label_visibility="collapsed",
+                )
             authentication = True
         else:
             openai_api_key = st.secrets["OPENAI_API_KEY"]
             bing_subscription_key = st.secrets["BING_SUBSCRIPTION_KEY"]
+            google_api_key = st.secrets["GOOGLE_API_KEY"]
+            google_cse_id = st.secrets["GOOGLE_CSE_ID"]
             langchain_api_key = st.secrets["LANGCHAIN_API_KEY"]
             stored_pin = st.secrets["USER_PIN"]
             st.write("**Password**")
             user_pin = st.text_input(
                 label="Enter password", type="password", label_visibility="collapsed"
             )
+            st.session_state.model_type = "GPT Models from OpenAI"
             authentication = user_pin == stored_pin
 
         os.environ["BING_SEARCH_URL"] = "https://api.bing.microsoft.com/v7.0/search"
 
     if authentication:
         if not st.session_state.ready:
-            if is_openai_api_key_valid(openai_api_key):
+            if choice_api == "My keys":
                 os.environ["OPENAI_API_KEY"] = openai_api_key
+                os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
+                st.session_state.bing_subscription_validity = True
                 st.session_state.openai = OpenAI()
+                os.environ["GOOGLE_API_KEY"] = google_api_key
+                os.environ["GOOGLE_CSE_ID"] = google_cse_id
+                st.session_state.google_cse_id_validity = True
                 st.session_state.ready = True
-
-                if choice_api == "My keys":
-                    os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
-                    st.session_state.bing_subscription_validity = True
-                    os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
-                    current_date = datetime.datetime.now().date()
-                    date_string = str(current_date)
-                    os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
+                os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
+                current_date = datetime.datetime.now().date()
+                date_string = str(current_date)
+                os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
+            else:
+                if st.session_state.model_type == "GPT Models from OpenAI":
+                    if is_openai_api_key_valid(openai_api_key):
+                        os.environ["OPENAI_API_KEY"] = openai_api_key
+                        st.session_state.openai = OpenAI()
+                        st.session_state.ready = True
+                        if is_bing_subscription_key_valid(bing_subscription_key):
+                            os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
+                            st.session_state.bing_subscription_validity = True
+                        else:
+                            st.session_state.bing_subscription_validity = False
                 else:
-                    if is_bing_subscription_key_valid(bing_subscription_key):
-                        os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
-                        st.session_state.bing_subscription_validity = True
-                    else:
-                        st.session_state.bing_subscription_validity = False
+                    if is_google_api_key_valid(google_api_key):
+                        os.environ["GOOGLE_API_KEY"] = google_api_key
+                        st.session_state.ready = True
+                        if are_google_api_key_cse_id_valid(
+                            google_api_key, google_cse_id
+                        ):
+                            os.environ["GOOGLE_CSE_ID"] = google_cse_id
+                            st.session_state.google_cse_id_validity = True
+                        else:
+                            st.session_state.google_cse_id_validity = False
+
+            if st.session_state.ready:
                 st.rerun()
             else:
                 st.info(
@@ -1093,21 +1352,46 @@ def create_text_image():
             )
         st.write("")
         st.write("**Models**")
-        model = st.radio(
-            label="$\\textsf{Models}$",
-            options=(
+        if choice_api == "My keys":
+            model_options=(
                 "gpt-3.5-turbo",
                 "gpt-4-turbo-preview",
                 "gpt-4-vision-preview",
                 "dall-e-3",
-            ),
+                "gemini-1.0-pro-latest",
+                "gemini-1.5-pro-latest",
+                "gemini-pro-vision",
+            )
+        else:
+            if st.session_state.model_type == "GPT Models from OpenAI":
+                model_options=(
+                    "gpt-3.5-turbo",
+                    "gpt-4-turbo-preview",
+                    "gpt-4-vision-preview",
+                    "dall-e-3",
+                )
+            else:
+                model_options=(
+                    "gemini-1.0-pro-latest",
+                    "gemini-1.5-pro-latest",
+                    "gemini-pro-vision",
+                )
+        model = st.radio(
+            label="Models",
+            options=model_options,
             label_visibility="collapsed",
             on_change=switch_between_apps,
         )
 
-    if model in ("gpt-3.5-turbo", "gpt-4-turbo-preview"):
+
+    if model in (
+        "gpt-3.5-turbo",
+        "gpt-4-turbo-preview",
+        "gemini-1.0-pro-latest",
+        "gemini-1.5-pro-latest"
+    ):
         create_text(model)
-    elif model == "gpt-4-vision-preview":
+    elif model in ("gpt-4-vision-preview", "gemini-pro-vision"):
         create_text_with_image(model)
     else:
         create_image(model)
