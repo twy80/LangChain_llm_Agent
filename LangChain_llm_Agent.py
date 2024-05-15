@@ -362,7 +362,7 @@ def query_image(
             message = HumanMessage(
                 content=[
                     {"type": "text", "text": query},
-                    {"type": "image_url", "image_url": image_url},
+                    {"type": "image_url", "image_url": {"url": image_url}},
                 ]
             )
             response = llm.invoke([message])
