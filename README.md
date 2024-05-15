@@ -1,28 +1,31 @@
 # [LangChain_LLM_Agent](https://langchain-llm-agent.streamlit.app/)
 
-* This app generates text and images using OpenAI's APIs and LangChain.
+* This app presents two types of agents: 'Tool Calling' and 'ReAct' using LangChain.
+  GPT models from OpenAI and Gemini models from Google are supported, but only the 'ReAct'
+  type of agent is implemented for Gemini models.
   
-  - Your OpenAI API key is required to run this code. You can obtain an API key
+  - For GPT models, your OpenAI API key is needed. You can obtain an API key
     from https://platform.openai.com/account/api-keys.
 
-  - Text outputs are generated using large language models such as "gpt-3.5-turbo",
-    "gpt-4-turbo", or "gpt-4-vision-preview", and images are generated using
-    "dall-e-3."
+  - For Gemini models, your Google API key is needed. You can obtain an API key
+    from https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e.
+
+  - For internet searches, obtain your Bing Subscription Key
+    [here](https://portal.azure.com/) or Google CSE ID
+    [here](https://programmablesearchengine.google.com/about/).
 
   - Temperature can be set by the user
 
-  - Voice recognition and Text-To-Speech (TTS) functionalities are supported.
+  - Voice recognition and Text-To-Speech (TTS) functionalities are supported
+    using OpenAI functions, and therefore are enabled only when you use
+    GPT models from OpenAI.
 
   - Recording of the user's voice is stopped when there is no input for 3 seconds.
   
-  - Supported tools include Bing Search, ArXiv, Wikipedia, Retrieval (RAG),
-    and python_REPL.
-    * To use Bing Search, you need a Bing Subscription Key that can be obtained
-      [here](https://portal.azure.com/). You can also follow instructions on
-      [this site](https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e)
-      to get your Bing Subscription Key.
-    * PythonREPL from LangChain is still experimental, and therefore caution is
-      needed. Users are also advised to choose gpt-4-turbo-preview with Python REPL.
+  - In addition to the search tool from Bing or Google, ArXiv, Wikipedia,
+    Retrieval (RAG), and pythonREPL are supported.
+    (PythonREPL from LangChain is still experimental, and therefore caution is
+    needed. Users are also advised to choose gpt-4-turbo-preview with Python REPL.)
 
   - Tracing LLM messages is possible using LangSmith if you download the source code
     and run it on your machine or server.  For this, you need a

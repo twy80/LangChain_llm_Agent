@@ -757,7 +757,7 @@ def set_prompts(agent_type: Literal["Tool Calling", "ReAct"]) -> None:
                 "system",
                 f"{st.session_state.ai_role[0]} Your goal is to provide "
                 "answers to human inquiries. Should the information not "
-                "be available, please inform the human explicitly that "
+                "be available, inform the human explicitly that "
                 "the answer could not be found."
             ),
             MessagesPlaceholder(variable_name="chat_history"),
@@ -773,10 +773,10 @@ def set_prompts(agent_type: Literal["Tool Calling", "ReAct"]) -> None:
                 "arxiv.org ('arxiv'), Wikipedia documents ('wikipedia'), "
                 "uploaded documents ('retriever'), or your general knowledge. "
                 "Use Markdown syntax and include relevant sources, such as "
-                "links (URLs), following MLA format. If the information is "
-                "not available through internet searches, scientific "
+                "links (URLs), following MLA format. Should the information "
+                "not be available through internet searches, scientific "
                 "articles, Wikipedia documents, uploaded documents, or your "
-                "general knowledge, explicitly inform the human that the "
+                "general knowledge, inform the human explicitly that the "
                 "answer could not be found. Also, if you use 'python_repl' "
                 "for computation, show the Python code that you run."
             ),
@@ -956,6 +956,15 @@ def create_text(model: str) -> None:
         mime="text/plain"
     )
 
+    # Set the agent tools and prompt
+    if model.startswith("gemini-"):
+        agent_type = "ReAct"
+    else:
+        agent_type = st.session_state.agent_type[0]
+
+    set_prompts(agent_type)
+    tools = set_tools()
+
     if st.session_state.model_type == "GPT Models from OpenAI":
         audio_input = input_from_mic()
         if audio_input is not None:
@@ -965,15 +974,6 @@ def create_text(model: str) -> None:
 
     # Use your keyboard
     text_input = st.chat_input(placeholder="Enter your query")
-
-    # Set the agent tools and prompt
-    if model.startswith("gemini-"):
-        agent_type = "ReAct"
-    else:
-        agent_type = st.session_state.agent_type[0]
-
-    set_prompts(agent_type)
-    tools = set_tools()
 
     if text_input:
         query = text_input.strip()
