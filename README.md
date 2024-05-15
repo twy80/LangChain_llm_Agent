@@ -22,10 +22,9 @@
 
   - Recording of the user's voice is stopped when there is no input for 3 seconds.
   
-  - In addition to the search tool from Bing or Google, ArXiv, Wikipedia,
+  - In addition to the search tools from Bing or Google, ArXiv, Wikipedia,
     Retrieval (RAG), and pythonREPL are supported.
-    (PythonREPL from LangChain is still experimental, and therefore caution is
-    needed. Users are also advised to choose gpt-4-turbo-preview with Python REPL.)
+    (PythonREPL from LangChain is still experimental, so caution is needed.)
 
   - Tracing LLM messages is possible using LangSmith if you download the source code
     and run it on your machine or server.  For this, you need a
