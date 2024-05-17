@@ -36,6 +36,7 @@ from langchain.callbacks.base import BaseCallbackHandler
 from langchain.pydantic_v1 import BaseModel, Field
 # The following are for type annotations
 from typing import Union, List, Literal, Optional
+from matplotlib.figure import Figure
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from openai._legacy_response import HttpxBinaryResponseContent
 
@@ -86,15 +87,6 @@ def initialize_session_state_variables() -> None:
     if "image_description" not in st.session_state:
         st.session_state.image_description = None
 
-    if "uploaded_image" not in st.session_state:
-        st.session_state.uploaded_image = None
-
-    if "qna" not in st.session_state:
-        st.session_state.qna = {"question": "", "answer": ""}
-
-    if "image_source" not in st.session_state:
-        st.session_state.image_source = 2 * ["From URL"]
-
     if "uploader_key" not in st.session_state:
         st.session_state.uploader_key = 0
 
@@ -113,9 +105,6 @@ def initialize_session_state_variables() -> None:
 
     if "retriever_tool" not in st.session_state:
         st.session_state.retriever_tool = None
-
-    if "fig" not in st.session_state:
-        st.session_state.fig = []
 
 
 class StreamHandler(BaseCallbackHandler):
@@ -231,7 +220,8 @@ def message_history_to_string(extra_space: bool=True) -> str:
 def run_agent(
     query: str,
     model: str,
-    tools: List[Tool]=None,
+    tools: List[Tool],
+    image_urls: List[str],
     temperature: float=0.7,
     agent_type: Literal["Tool Calling", "ReAct"]="Tool Calling",
 ) -> str:
@@ -243,6 +233,7 @@ def run_agent(
         query: User's query
         model: LLM like "gpt-3.5-turbo"
         tools: list of tools such as Search and Retrieval
+        image_urls: List of URLs for images
         temperature: Value between 0 and 1. Defaults to 0.7
         agent_type: 'Tool Calling' or 'ReAct'
 
@@ -253,9 +244,6 @@ def run_agent(
     st.session_state variables.
     """
 
-    if tools is None:
-        tools = []
-
     ChatModel = ChatOpenAI if model.startswith("gpt-") else ChatGoogleGenerativeAI
     llm = ChatModel(
         temperature=temperature,
@@ -264,37 +252,51 @@ def run_agent(
         callbacks=[StreamHandler(st.empty())]
     )
 
-    if tools:
-        if agent_type == "Tool Calling":
-            agent = create_openai_tools_agent(
-                llm, tools, st.session_state.agent_prompt
-            )
-        else:
-            agent = create_react_agent(
-                llm, tools, st.session_state.agent_prompt
-            )
-        agent_executor = AgentExecutor(
-            agent=agent, tools=tools, max_iterations=5, verbose=False,
-            handle_parsing_errors=True,
-        )
+    if agent_type == "Tool Calling":
+        chat_history = st.session_state.history
     else:
-        agent_executor = st.session_state.chat_prompt | llm
+        chat_history = message_history_to_string()
+
+    history_query = {
+        "chat_history": chat_history,
+        "input": query,
+    }
+    message_with_no_image = st.session_state.chat_prompt.invoke(history_query)
 
     try:
-        if agent_type == "Tool Calling":
-            chat_history = st.session_state.history
+        if model in st.session_state.model_with_vision and image_urls:
+            content_with_images = (
+                [{"type": "text", "text": message_with_no_image.messages[0].content}] +
+                [{"type": "image_url", "image_url": {"url": url}} for url in image_urls]
+            )
+            message_with_images = [HumanMessage(content=content_with_images)]
+            generated_text = llm.invoke(message_with_images).content
+        elif tools:
+            if agent_type == "Tool Calling":
+                agent = create_openai_tools_agent(
+                    llm, tools, st.session_state.agent_prompt
+                )
+            else:
+                agent = create_react_agent(
+                    llm, tools, st.session_state.agent_prompt
+                )
+            agent_executor = AgentExecutor(
+                agent=agent, tools=tools, max_iterations=5, verbose=False,
+                handle_parsing_errors=True,
+            )
+            generated_text = agent_executor.invoke(history_query)["output"]
         else:
-            chat_history = message_history_to_string()
+            generated_text = llm.invoke(message_with_no_image).content
 
-        response = agent_executor.invoke(
-            {
-                "chat_history": chat_history,
-                "input": query,
-            }
-        )
-        generated_text = response["output"] if tools else response.content
-        st.session_state.history.append(HumanMessage(content=query))
+        if image_urls:
+            human_message = HumanMessage(
+                content=query, additional_kwargs={"image_urls": image_urls}
+            )
+        else:
+            human_message = HumanMessage(content=query)
+        st.session_state.history.append(human_message)
         st.session_state.history.append(AIMessage(content=generated_text))
+
     except Exception as e:
         generated_text = None
         st.error(f"An error occurred: {e}", icon="🚨")
@@ -333,45 +335,6 @@ def openai_create_image(
         st.error(f"An error occurred: {e}", icon="🚨")
 
     return image_url
-
-
-def query_image(
-    image_url: str,
-    query: str,
-    model: str="gpt-4-vision-preview",
-    temperature: float=0.7,
-) -> Optional[str]:
-
-    """
-    Answer the user's query about the given image from a URL.
-
-    Args:
-        image_url: URL of the image
-        query: the user's query
-        model: default set to "gpt-4-vision-preview"
-
-    Return:
-        text as an answer to the user's query.
-    """
-
-    ChatModel = ChatOpenAI if model.startswith("gpt-") else ChatGoogleGenerativeAI
-    llm = ChatModel(model=model, temperature=temperature)
-
-    try:
-        with st.spinner("AI is thinking..."):
-            message = HumanMessage(
-                content=[
-                    {"type": "text", "text": query},
-                    {"type": "image_url", "image_url": {"url": image_url}},
-                ]
-            )
-            response = llm.invoke([message])
-        generated_text = response.content
-    except Exception as e:
-        generated_text = None
-        st.error(f"An error occurred: {e}", icon="🚨")
-
-    return generated_text
 
 
 def get_vector_store(uploaded_files: List[UploadedFile]) -> Optional[FAISS]:
@@ -421,7 +384,9 @@ def get_vector_store(uploaded_files: List[UploadedFile]) -> Optional[FAISS]:
             doc = text_splitter.split_documents(documents)
             # Create a FAISS vector database.
             if st.session_state.model_type == "GPT Models from OpenAI":
-                embeddings = OpenAIEmbeddings()
+                embeddings = OpenAIEmbeddings(
+                    model="text-embedding-3-large", dimensions=1536
+                )
             else:
                 embeddings = GoogleGenerativeAIEmbeddings(
                     model="models/embedding-001"
@@ -446,13 +411,13 @@ def get_retriever() -> None:
     """
 
     st.write("")
-    st.write("##### Document(s) to ask about")
+    st.write("**Query Document(s)**")
     uploaded_files = st.file_uploader(
         label="Upload an article",
         type=["txt", "pdf", "docx"],
         accept_multiple_files=True,
         label_visibility="collapsed",
-        key="upload" + str(st.session_state.uploader_key),
+        key="document_upload_" + str(st.session_state.uploader_key),
     )
 
     if st.button(label="Create the vector store"):
@@ -610,6 +575,73 @@ def shorten_image(image: Image, max_pixels: int=1024) -> Image:
     return image
 
 
+def upload_image_files_return_urls(
+    type: List[str]=["jpg", "jpeg", "png", "bmp"]
+) -> List[str]:
+
+    """
+    Upload image files, convert them to base64 encoded images, and
+    return the list of the resulting encoded images in the form of URLs.
+    """
+
+    st.write("")
+    st.write("**Query Image(s)**")
+    source = st.radio(
+        label="Image selection",
+        options=("Uploaded", "From URL"),
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+    image_urls = []
+
+    if source == "Uploaded":
+        uploaded_files = st.file_uploader(
+            label="Upload images",
+            type=type,
+            accept_multiple_files=True,
+            label_visibility="collapsed",
+            key="image_upload_" + str(st.session_state.uploader_key),
+        )
+        if uploaded_files:
+            try:
+                for image_file in uploaded_files:
+                    image = Image.open(image_file)
+                    thumbnail = shorten_image(image, 300)
+                    st.image(thumbnail)
+                    image = shorten_image(image, 1024)
+                    image_urls.append(image_to_base64(image))
+            except UnidentifiedImageError as e:
+                st.error(f"An error occurred: {e}", icon="🚨")
+    else:
+        image_url = st.text_input(
+            label="URL of the image",
+            label_visibility="collapsed",
+            key="image_url_" + str(st.session_state.uploader_key),
+        )
+        if image_url:
+            if is_url(image_url):
+                st.image(image_url)
+                image_urls = [image_url]
+            else:
+                st.error("Enter a proper URL", icon="🚨")
+
+    return image_urls
+
+
+def fig_to_base64(fig: Figure) -> str:
+    """
+    Convert a Figure object to a base64 encoded image, and
+    return the resulting encoded image in the form of a URL.
+    """
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format="png")
+    buffer.seek(0)
+    image = Image.open(buffer)
+
+    return image_to_base64(image)
+
+
 def is_url(text: str) -> bool:
     """
     Determine whether text is a URL or not.
@@ -632,8 +664,6 @@ def reset_conversation() -> None:
     st.session_state.history = []
     st.session_state.ai_role[1] = st.session_state.ai_role[0]
     st.session_state.prompt_exists = False
-    st.session_state.human_enq = []
-    st.session_state.ai_resp = []
     st.session_state.temperature[1] = st.session_state.temperature[0]
     st.session_state.audio_response = None
     st.session_state.vector_store_message = None
@@ -641,7 +671,6 @@ def reset_conversation() -> None:
     st.session_state.agent_type[1] = st.session_state.agent_type[0]
     st.session_state.retriever_tool = None
     st.session_state.uploader_key = 0
-    st.session_state.fig = []
 
 
 def switch_between_apps() -> None:
@@ -650,16 +679,9 @@ def switch_between_apps() -> None:
     """
 
     st.session_state.temperature[1] = st.session_state.temperature[0]
-    st.session_state.image_source[1] = st.session_state.image_source[0]
     st.session_state.ai_role[1] = st.session_state.ai_role[0]
     st.session_state.tool_names[1] = st.session_state.tool_names[0]
     st.session_state.agent_type[1] = st.session_state.agent_type[0]
-
-
-def reset_qna_image() -> None:
-    # Reset the question and answer for the image.
-    st.session_state.uploaded_image = None
-    st.session_state.qna = {"question": "", "answer": ""}
 
 
 def set_tools() -> List[Tool]:
@@ -715,7 +737,8 @@ def set_tools() -> List[Tool]:
     )
     if "Search" not in tool_options:
         st.write(
-            "<small>To search the internet, obtain your Bing Subscription "
+            "<small>Tools are disabled when images are uploaded and "
+            "queried. To search the internet, obtain your Bing Subscription "
             "Key [here](https://portal.azure.com/) or Google CSE ID "
             "[here](https://programmablesearchengine.google.com/about/), "
             "and enter it in the sidebar. Once entered, 'Search' will be "
@@ -726,7 +749,8 @@ def set_tools() -> List[Tool]:
         )
     else:
         st.write(
-            "<small>PythonREPL from LangChain is still "
+            "<small>Tools are disabled when images are uploaded and "
+            "queried. Note also that PythonREPL from LangChain is still "
             "in the experimental phase, so caution is advised.</small>",
             unsafe_allow_html=True,
         )
@@ -834,18 +858,18 @@ def print_conversation(no_of_msgs: Union[Literal["All"], int]) -> None:
 
     if no_of_msgs == "All":
         no_of_msgs = len(st.session_state.history)
+
     for msg in st.session_state.history[-no_of_msgs:]:
         if isinstance(msg, HumanMessage):
             with st.chat_message("human"):
                 st.write(msg.content)
-        elif re.match(
-            r"^Figure \d+ generated by AI\.$", msg.content
-        ):  # Check to see if the message points to a figure object
-            fig_number = re.search(r'\bFigure (\d+)\b', msg.content).group(1)
-            st.pyplot(st.session_state.fig[int(fig_number) - 1])
         else:
             with st.chat_message("ai"):
                 display_text_with_equations(msg.content)
+
+        if urls := msg.additional_kwargs.get("image_urls"):
+            for url in urls:
+                st.image(url)
 
     # Play TTS
     if (
@@ -906,7 +930,7 @@ def create_text(model: str) -> None:
         st.write("")
         st.write("**Temperature**")
         st.session_state.temperature[0] = st.slider(
-            label="$\\hspace{0.08em}\\texttt{Temperature}\,$ (higher $\Rightarrow$ more random)",
+            label="Temperature (higher $\Rightarrow$ more random)",
             min_value=0.0,
             max_value=1.0,
             value=st.session_state.temperature[1],
@@ -965,6 +989,11 @@ def create_text(model: str) -> None:
     set_prompts(agent_type)
     tools = set_tools()
 
+    image_urls = []
+    if model in st.session_state.model_with_vision:
+        with st.sidebar:
+            image_urls = upload_image_files_return_urls()
+
     if st.session_state.model_type == "GPT Models from OpenAI":
         audio_input = input_from_mic()
         if audio_input is not None:
@@ -985,22 +1014,19 @@ def create_text(model: str) -> None:
 
         with st.chat_message("ai"):
             generated_text = run_agent(
-                query,
-                model,
+                query=query,
+                model=model,
                 tools=tools,
+                image_urls=image_urls,
                 temperature=st.session_state.temperature[0],
                 agent_type=agent_type,
             )
             fig = plt.gcf()
             if fig and fig.get_axes():
-                fig_index = len(st.session_state.fig)
-                st.session_state.history.append(
-                    AIMessage(
-                        content=f"Figure {fig_index + 1} generated by AI."
-                    )
-                )
-                st.session_state.fig.append(fig)
-
+                generated_image_url = fig_to_base64(fig)
+                st.session_state.history[-1].additional_kwargs["image_urls"] = [
+                    generated_image_url
+                ]
         if (
             st.session_state.model_type == "GPT Models from OpenAI"
             and generated_text is not None
@@ -1015,100 +1041,8 @@ def create_text(model: str) -> None:
         st.session_state.prompt_exists = False
 
         if generated_text is not None:
+            st.session_state.uploader_key += 1
             st.rerun()
-
-
-def create_text_with_image(model: str) -> None:
-    """
-    Respond to the user's query about the image from a URL or uploaded image.
-    """
-
-    with st.sidebar:
-        sources = ("From URL", "Uploaded")
-        st.write("")
-        st.write("**Image selection**")
-        st.session_state.image_source[0] = st.radio(
-            label="Image selection",
-            options=sources,
-            index=sources.index(st.session_state.image_source[1]),
-            label_visibility="collapsed",
-        )
-
-    st.write("")
-    st.write("##### Image to ask about")
-    st.write("")
-
-    if st.session_state.image_source[0] == "From URL":
-        # Enter a URL
-        st.write("###### :blue[Enter the URL of your image]")
-
-        image_url = st.text_input(
-            label="URL of the image", label_visibility="collapsed",
-            on_change=reset_qna_image
-        )
-        if image_url:
-            if is_url(image_url):
-                st.session_state.uploaded_image = image_url
-            else:
-                st.error("Enter a proper URL", icon="🚨")
-    else:
-        # Upload an image file
-        st.write("###### :blue[Upload your image]")
-
-        image_file = st.file_uploader(
-            label="High resolution images will be resized.",
-            type=["jpg", "jpeg", "png", "bmp"],
-            accept_multiple_files=False,
-            label_visibility="collapsed",
-            on_change=reset_qna_image,
-        )
-        if image_file is not None:
-            # Process the uploaded image file
-            try:
-                image = Image.open(image_file)
-                image = shorten_image(image, 1024)
-                st.session_state.uploaded_image = image_to_base64(image)
-            except UnidentifiedImageError as e:
-                st.error(f"An error occurred: {e}", icon="🚨")
-
-    # Capture the user's query and provide a response if the image is ready
-    if st.session_state.uploaded_image:
-        st.image(image=st.session_state.uploaded_image, use_column_width=True)
-
-        # Print query & answer
-        if st.session_state.qna["question"] and st.session_state.qna["answer"]:
-            with st.chat_message("human"):
-                st.write(st.session_state.qna["question"])
-            with st.chat_message("ai"):
-                display_text_with_equations(st.session_state.qna["answer"])
-
-        # Use your microphone
-        if st.session_state.model_type == "GPT Models from OpenAI":
-            audio_input = input_from_mic()
-            if audio_input is not None:
-                st.session_state.qna["question"] = audio_input
-                st.session_state.prompt_exists = True
-
-        # Use your keyboard
-        text_input = st.chat_input(
-            placeholder="Enter your query",
-        )
-        if text_input:
-            st.session_state.qna["question"] = text_input.strip()
-            st.session_state.prompt_exists = True
-
-        if st.session_state.prompt_exists:
-            generated_text = query_image(
-                image_url=st.session_state.uploaded_image,
-                query=st.session_state.qna["question"],
-                model=model,
-                temperature=st.session_state.temperature[0],
-            )
-
-            st.session_state.prompt_exists = False
-            if generated_text is not None:
-                st.session_state.qna["answer"] = generated_text
-                st.rerun()
 
 
 def create_image(model: str) -> None:
@@ -1356,18 +1290,16 @@ def create_text_image() -> None:
             model_options=(
                 "gpt-3.5-turbo",
                 "gpt-4o",
-                "gpt-4-vision-preview",
-                "dall-e-3",
                 "gemini-1.0-pro-latest",
                 "gemini-1.5-pro-latest",
                 "gemini-pro-vision",
+                "dall-e-3",
             )
         else:
             if st.session_state.model_type == "GPT Models from OpenAI":
                 model_options=(
                     "gpt-3.5-turbo",
                     "gpt-4o",
-                    "gpt-4-vision-preview",
                     "dall-e-3",
                 )
             else:
@@ -1380,21 +1312,16 @@ def create_text_image() -> None:
             label="Models",
             options=model_options,
             label_visibility="collapsed",
+            index=1,
             on_change=switch_between_apps,
         )
 
+    st.session_state.model_with_vision = ("gpt-4o", "gemini-pro-vision")
 
-    if model in (
-        "gpt-3.5-turbo",
-        "gpt-4o",
-        "gemini-1.0-pro-latest",
-        "gemini-1.5-pro-latest"
-    ):
-        create_text(model)
-    elif model in ("gpt-4-vision-preview", "gemini-pro-vision"):
-        create_text_with_image(model)
-    else:
+    if model == "dall-e-3":
         create_image(model)
+    else:
+        create_text(model)
 
     with st.sidebar:
         st.write("---")
