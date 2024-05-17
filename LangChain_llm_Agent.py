@@ -246,8 +246,8 @@ def run_agent(
 
     ChatModel = ChatOpenAI if model.startswith("gpt-") else ChatGoogleGenerativeAI
     llm = ChatModel(
-        temperature=temperature,
         model=model,
+        temperature=temperature,
         streaming=True,
         callbacks=[StreamHandler(st.empty())]
     )
