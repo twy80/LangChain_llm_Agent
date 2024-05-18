@@ -537,8 +537,9 @@ def play_audio(audio_response: HttpxBinaryResponseContent) -> None:
 
 def image_to_base64(image: Image) -> str:
     """
-    Convert an image object from PIL to a base64 encoded image,
-    and return the resulting encoded image in the form of a URL.
+    Convert an image object from PIL to a base64-encoded image,
+    and return the resulting encoded image as a string to be used
+    in place of a URL.
     """
 
     # Convert the image to RGB mode if necessary
@@ -580,8 +581,9 @@ def upload_image_files_return_urls(
 ) -> List[str]:
 
     """
-    Upload image files, convert them to base64 encoded images, and
-    return the list of the resulting encoded images in the form of URLs.
+    Upload image files, convert them to base64-encoded images, and
+    return the list of the resulting encoded images to be used
+    in place of URLs.
     """
 
     st.write("")
@@ -630,8 +632,8 @@ def upload_image_files_return_urls(
 
 def fig_to_base64(fig: Figure) -> str:
     """
-    Convert a Figure object to a base64 encoded image, and
-    return the resulting encoded image in the form of a URL.
+    Convert a Figure object to a base64-encoded image, and return
+    the resulting encoded image to be used in place of a URL.
     """
 
     buffer = BytesIO()

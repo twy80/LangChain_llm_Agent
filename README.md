@@ -4,20 +4,20 @@
   GPT models from OpenAI and Gemini models from Google are supported, but only the 'ReAct'
   type of agent is implemented for Gemini models.
   
-  - For GPT models, your OpenAI API key is needed. You can obtain an API key
-    from https://platform.openai.com/account/api-keys.
+  - For GPT models such as 'gpt-4o', your OpenAI API key is needed. You can obtain
+    an API key from https://platform.openai.com/account/api-keys.
 
-  - For Gemini models, your Google API key is needed. You can obtain an API key
-    from https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e.
+  - For Gemini models such as 'gemini-1.5-pro', your Google API key is needed.
+    You can obtain an API key from https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e.
 
   - For internet searches, obtain your Bing Subscription Key
     [here](https://portal.azure.com/) or Google CSE ID
     [here](https://programmablesearchengine.google.com/about/).
 
-  - Temperature can be set by the user
+  - Temperature can be set by the user.
 
   - Voice recognition and Text-To-Speech (TTS) functionalities are supported
-    using OpenAI functions, and therefore are enabled only when you use
+    using OpenAI functions, and therefore are enabled when you use
     GPT models from OpenAI.
 
   - Recording of the user's voice is stopped when there is no input for 3 seconds.
