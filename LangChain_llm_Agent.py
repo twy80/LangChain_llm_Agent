@@ -244,6 +244,12 @@ def run_agent(
     st.session_state variables.
     """
 
+    if image_urls:
+        if st.session_state.model_type == "GPT Models from OpenAI":
+            model = "gpt-4o"
+        else:
+            model = "gemini-pro-vision"
+
     ChatModel = ChatOpenAI if model.startswith("gpt-") else ChatGoogleGenerativeAI
     llm = ChatModel(
         model=model,
@@ -1308,7 +1314,6 @@ def create_text_image() -> None:
                 model_options=(
                     "gemini-1.0-pro-latest",
                     "gemini-1.5-pro-latest",
-                    "gemini-pro-vision",
                 )
         model = st.radio(
             label="Models",
