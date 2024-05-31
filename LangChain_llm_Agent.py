@@ -259,7 +259,7 @@ def run_agent(
 
     try:
         if image_urls:
-            if st.session_state.model_type == "GPT Models from OpenAI":
+            if model.startswith("gpt-"):
                 model = "gpt-4o"
             else:
                 model = "gemini-pro-vision"
