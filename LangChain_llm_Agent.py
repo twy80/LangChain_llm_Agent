@@ -244,19 +244,7 @@ def run_agent(
     st.session_state variables.
     """
 
-    if image_urls:
-        if st.session_state.model_type == "GPT Models from OpenAI":
-            model = "gpt-4o"
-        else:
-            model = "gemini-pro-vision"
-
     ChatModel = ChatOpenAI if model.startswith("gpt-") else ChatGoogleGenerativeAI
-    llm = ChatModel(
-        model=model,
-        temperature=temperature,
-        streaming=True,
-        callbacks=[StreamHandler(st.empty())]
-    )
 
     if agent_type == "Tool Calling":
         chat_history = st.session_state.history
@@ -270,7 +258,18 @@ def run_agent(
     message_with_no_image = st.session_state.chat_prompt.invoke(history_query)
 
     try:
-        if model in st.session_state.model_with_vision and image_urls:
+        if image_urls:
+            if st.session_state.model_type == "GPT Models from OpenAI":
+                model = "gpt-4o"
+            else:
+                model = "gemini-pro-vision"
+
+            llm = ChatModel(
+                model=model,
+                temperature=temperature,
+                streaming=True,
+                callbacks=[StreamHandler(st.empty())]
+            )
             content_with_images = (
                 [{"type": "text", "text": message_with_no_image.messages[0].content}] +
                 [{"type": "image_url", "image_url": {"url": url}} for url in image_urls]
@@ -998,9 +997,8 @@ def create_text(model: str) -> None:
     tools = set_tools()
 
     image_urls = []
-    if model in st.session_state.model_with_vision:
-        with st.sidebar:
-            image_urls = upload_image_files_return_urls()
+    with st.sidebar:
+        image_urls = upload_image_files_return_urls()
 
     if st.session_state.model_type == "GPT Models from OpenAI":
         audio_input = input_from_mic()
@@ -1300,7 +1298,6 @@ def create_text_image() -> None:
                 "gpt-4o",
                 "gemini-1.0-pro-latest",
                 "gemini-1.5-pro-latest",
-                "gemini-pro-vision",
                 "dall-e-3",
             )
         else:
@@ -1322,8 +1319,6 @@ def create_text_image() -> None:
             index=1,
             on_change=switch_between_apps,
         )
-
-    st.session_state.model_with_vision = ("gpt-4o", "gemini-pro-vision")
 
     if model == "dall-e-3":
         create_image(model)
