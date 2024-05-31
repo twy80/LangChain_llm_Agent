@@ -244,7 +244,21 @@ def run_agent(
     st.session_state variables.
     """
 
-    ChatModel = ChatOpenAI if model.startswith("gpt-") else ChatGoogleGenerativeAI
+    if model.startswith("gpt-"):
+        ChatModel = ChatOpenAI
+        if image_urls:
+            model = "gpt-4o"
+    else:
+        ChatModel = ChatGoogleGenerativeAI
+        if image_urls:
+            model = "gemini-pro-vision"
+
+    llm = ChatModel(
+        model=model,
+        temperature=temperature,
+        streaming=True,
+        callbacks=[StreamHandler(st.empty())]
+    )
 
     if agent_type == "Tool Calling":
         chat_history = st.session_state.history
@@ -259,17 +273,6 @@ def run_agent(
 
     try:
         if image_urls:
-            if model.startswith("gpt-"):
-                model = "gpt-4o"
-            else:
-                model = "gemini-pro-vision"
-
-            llm = ChatModel(
-                model=model,
-                temperature=temperature,
-                streaming=True,
-                callbacks=[StreamHandler(st.empty())]
-            )
             content_with_images = (
                 [{"type": "text", "text": message_with_no_image.messages[0].content}] +
                 [{"type": "image_url", "image_url": {"url": url}} for url in image_urls]
