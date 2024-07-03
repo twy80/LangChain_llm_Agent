@@ -26,11 +26,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain.tools import Tool
 from langchain.tools.retriever import create_retriever_tool
-from langchain.agents import create_openai_tools_agent
+# from langchain.agents import create_openai_tools_agent
+from langchain.agents import create_tool_calling_agent
 from langchain.agents import create_react_agent
-# from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
-from langchain.agents import load_tools
+from langchain_community.agent_toolkits.load_tools import load_tools
 from langchain_experimental.tools import PythonREPLTool
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.pydantic_v1 import BaseModel, Field
@@ -281,7 +281,7 @@ def run_agent(
             generated_text = llm.invoke(message_with_images).content
         elif tools:
             if agent_type == "Tool Calling":
-                agent = create_openai_tools_agent(
+                agent = create_tool_calling_agent(
                     llm, tools, st.session_state.agent_prompt
                 )
             else:
@@ -917,17 +917,24 @@ def create_text(model: str) -> None:
     )
 
     with st.sidebar:
+        st.write("")
+        if model == "gemini-1.5-flash-latest":
+            agent_type = "Tool Calling"
+            st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
+        elif model == "gemini-1.0-pro-latest":
+            agent_type = "ReAct"
+            st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
+        else:
+            type_options = ("Tool Calling", "ReAct")
+            st.write("**Agent Type**")
+            st.session_state.agent_type[0] = st.sidebar.radio(
+                label="Agent Type",
+                options=type_options,
+                index=type_options.index(st.session_state.agent_type[1]),
+                label_visibility="collapsed",
+            )
+            agent_type = st.session_state.agent_type[0]
         if st.session_state.model_type == "GPT Models from OpenAI":
-            if not model.startswith("gemini-"):
-                type_options = ("Tool Calling", "ReAct")
-                st.write("")
-                st.write("**Agent Type**")
-                st.session_state.agent_type[0] = st.sidebar.radio(
-                    label="Agent Type",
-                    options=type_options,
-                    index=type_options.index(st.session_state.agent_type[1]),
-                    label_visibility="collapsed",
-                )
             st.write("")
             st.write("**Text to Speech**")
             st.session_state.tts = st.radio(
@@ -990,12 +997,7 @@ def create_text(model: str) -> None:
         mime="text/plain"
     )
 
-    # Set the agent tools and prompt
-    if model.startswith("gemini-"):
-        agent_type = "ReAct"
-    else:
-        agent_type = st.session_state.agent_type[0]
-
+    # Set the agent prompts and tools
     set_prompts(agent_type)
     tools = set_tools()
 
@@ -1301,6 +1303,7 @@ def create_text_image() -> None:
                 "gpt-4o",
                 "gemini-1.0-pro-latest",
                 "gemini-1.5-pro-latest",
+                "gemini-1.5-flash-latest",
                 "dall-e-3",
             )
         else:
@@ -1314,6 +1317,7 @@ def create_text_image() -> None:
                 model_options=(
                     "gemini-1.0-pro-latest",
                     "gemini-1.5-pro-latest",
+                    "gemini-1.5-flash-latest",
                 )
         model = st.radio(
             label="Models",

@@ -6,8 +6,8 @@ pillow
 langchain
 langchain-openai
 langchain-experimental
-langchain-google-genai==1.0.3
-langchain-google-community==1.0.3
+langchain-google-genai
+langchain-google-community
 langsmith
 pypdf
 docx2txt

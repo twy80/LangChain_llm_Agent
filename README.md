@@ -1,8 +1,7 @@
 # [LangChain_LLM_Agent](https://langchain-llm-agent.streamlit.app/)
 
 * This app presents two types of agents: 'Tool Calling' and 'ReAct' using LangChain.
-  GPT models from OpenAI and Gemini models from Google are supported, but only the 'ReAct'
-  type of agent is implemented for Gemini models.
+  GPT models from OpenAI and Gemini models from Google are supported.
   
   - For GPT models such as 'gpt-4o', your OpenAI API key is needed. You can obtain
     an API key from https://platform.openai.com/account/api-keys.
