@@ -1110,7 +1110,16 @@ def create_text_image() -> None:
     "gpt-4-turbo-preview", "gpt-4-vision-preview", or "dall-e-3",
     """
 
-    st.write("## 📚 LangChain LLM Agent")
+    page_title = "LangChain LLM Agent"
+    page_icon = "📚"
+
+    st.set_page_config(
+        page_title=page_title,
+        page_icon=page_icon,
+        layout="centered"
+    )
+
+    st.write(f"## {page_icon} $\,${page_title}")
 
     # Initialize all the session state variables
     initialize_session_state_variables()
