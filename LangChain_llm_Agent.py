@@ -1302,7 +1302,7 @@ def create_text_image() -> None:
                 horizontal=True
             )
             os.environ["LANGCHAIN_TRACING_V2"] = (
-                "True" if langsmith == "On" else "False"
+                "true" if langsmith == "On" else "false"
             )
         st.write("")
         st.write("**Model**")
