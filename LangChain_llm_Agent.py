@@ -250,8 +250,6 @@ def run_agent(
             model = "gpt-4o"
     else:
         ChatModel = ChatGoogleGenerativeAI
-        if image_urls:
-            model = "gemini-pro-vision"
 
     llm = ChatModel(
         model=model,
