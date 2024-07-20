@@ -231,7 +231,7 @@ def run_agent(
 
     Args:
         query: User's query
-        model: LLM like "gpt-3.5-turbo"
+        model: LLM like "gpt-4o"
         tools: list of tools such as Search and Retrieval
         image_urls: List of URLs for images
         temperature: Value between 0 and 1. Defaults to 0.7
@@ -918,10 +918,10 @@ def create_text(model: str) -> None:
 
     with st.sidebar:
         st.write("")
-        if model == "gemini-1.5-flash-latest":
+        if model == "gemini-1.5-flash":
             agent_type = "Tool Calling"
             st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
-        elif model == "gemini-1.0-pro-latest":
+        elif model == "gemini-1.0-pro":
             agent_type = "ReAct"
             st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
         else:
@@ -1106,8 +1106,7 @@ def create_image(model: str) -> None:
 
 def create_text_image() -> None:
     """
-    Generate text or image by using llm models "gpt-3.5-turbo",
-    "gpt-4-turbo-preview", "gpt-4-vision-preview", or "dall-e-3",
+    Generate text or image by using llm models like "gpt-4o".
     """
 
     page_title = "LangChain LLM Agent"
@@ -1308,25 +1307,25 @@ def create_text_image() -> None:
         st.write("**Model**")
         if choice_api == "My keys":
             model_options=(
-                "gpt-3.5-turbo",
+                "gpt-4o-mini",
                 "gpt-4o",
-                "gemini-1.0-pro-latest",
-                "gemini-1.5-pro-latest",
-                "gemini-1.5-flash-latest",
+                "gemini-1.0-pro",
+                "gemini-1.5-pro",
+                "gemini-1.5-flash",
                 "dall-e-3",
             )
         else:
             if st.session_state.model_type == "GPT Models from OpenAI":
                 model_options=(
-                    "gpt-3.5-turbo",
+                    "gpt-4o-mini",
                     "gpt-4o",
                     "dall-e-3",
                 )
             else:
                 model_options=(
-                    "gemini-1.0-pro-latest",
-                    "gemini-1.5-pro-latest",
-                    "gemini-1.5-flash-latest",
+                    "gemini-1.0-pro",
+                    "gemini-1.5-pro",
+                    "gemini-1.5-flash",
                 )
         model = st.radio(
             label="Models",
