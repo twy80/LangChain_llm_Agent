@@ -8,10 +8,10 @@
     an API key from https://platform.openai.com/account/api-keys.
 
   - For Claude models such as 'claude-3-sonnet', your Anthropic API key is needed.
-    You can obtain an API key from https://www.anthropic.com/api.
+    You can obtain an API key from https://console.anthropic.com/settings/keys.
 
   - For Gemini models such as 'gemini-1.5-flash', your Google API key is needed.
-    You can obtain an API key from https://ai.google.dev/gemini-api/docs/api-key.
+    You can obtain an API key from https://aistudio.google.com/app/apikey.
 
   - For internet searches, obtain your Bing Subscription Key
     [here](https://portal.azure.com/) or Google CSE ID
