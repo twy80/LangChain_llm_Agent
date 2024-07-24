@@ -1,16 +1,17 @@
 # [LangChain_LLM_Agent](https://langchain-llm-agent.streamlit.app/)
 
 * This app presents two types of agents: 'Tool Calling' and 'ReAct' using LangChain.
-  GPT models from OpenAI, Claude models from Anthropic, and Gemini models from Google are supported.
+  GPT models from OpenAI, Claude models from Anthropic, and Gemini models from Google
+  are supported.
   
   - For GPT models such as 'gpt-4o', your OpenAI API key is needed. You can obtain
     an API key from https://platform.openai.com/account/api-keys.
 
-  - For Claude models such as 'claude-3-sonnet', your Anthropic API key is needed. You can obtain
-    an API key from https://www.anthropic.com/api.
+  - For Claude models such as 'claude-3-sonnet', your Anthropic API key is needed.
+    You can obtain an API key from https://www.anthropic.com/api.
 
-  - For Gemini models such as 'gemini-1.5-pro', your Google API key is needed.
-    You can obtain an API key from https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e.
+  - For Gemini models such as 'gemini-1.5-flash', your Google API key is needed.
+    You can obtain an API key from https://ai.google.dev/gemini-api/docs/api-key.
 
   - For internet searches, obtain your Bing Subscription Key
     [here](https://portal.azure.com/) or Google CSE ID
