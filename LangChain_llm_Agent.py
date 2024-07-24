@@ -1373,7 +1373,6 @@ def create_text_image() -> None:
                 "claude-3-haiku-20240307",
                 "claude-3-sonnet-20240229",
                 "gemini-1.0-pro",
-                "gemini-1.5-pro",
                 "gemini-1.5-flash",
                 "dall-e-3",
             )
@@ -1392,7 +1391,6 @@ def create_text_image() -> None:
             else:
                 model_options=(
                     "gemini-1.0-pro",
-                    "gemini-1.5-pro",
                     "gemini-1.5-flash",
                 )
         model = st.radio(
