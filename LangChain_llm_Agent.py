@@ -1324,14 +1324,23 @@ def create_text_image() -> None:
             else:
                 st.info(
                     """
-                    **Enter your OpenAI and Bing Subscription Keys in the sidebar**
+                    **Enter your API Keys in the sidebar**
 
-                    Get an OpenAI API Key [here](https://platform.openai.com/api-keys)
-                    and a Bing Subscription Key [here](https://portal.azure.com/).
-                    You can also follow instructions on
-                    [this site](https://levelup.gitconnected.com/api-tutorial-how-to-use-bing-web-search-api-in-python-4165d5592a7e)
-                    to get your Bing Subscription Key. If you do not plan to search
-                    the internet, there is no need to enter your Bing Subscription key.
+                    - For GPT models such as 'gpt-4o', you can obtain an OpenAI
+                      API key from https://platform.openai.com/account/api-keys.
+
+                    - For Claude models such as 'claude-3-sonnet', you can
+                      obtain an Anthropic API key from
+                      https://console.anthropic.com/settings/keys.
+
+                    - For Gemini models such as 'gemini-1.5-flash', you can obtain
+                      a Google API key from https://aistudio.google.com/app/apikey.
+
+                    - For internet searches, obtain your Bing Subscription Key
+                      [here](https://portal.azure.com/) or Google CSE ID
+                      [here](https://programmablesearchengine.google.com/about/).
+                      If you do not plan to search the internet, there is no need
+                      to enter your Bing Subscription key.
                     """
                 )
                 st.image("files/Streamlit_Agent_App.png")
