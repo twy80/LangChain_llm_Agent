@@ -13,6 +13,7 @@ from PIL import Image, UnidentifiedImageError
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
+from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_google_community import GoogleSearchAPIWrapper
@@ -125,11 +126,41 @@ def is_openai_api_key_valid(openai_api_key: str) -> bool:
     headers = {
         "Authorization": f"Bearer {openai_api_key}",
     }
-    response = requests.get(
-        "https://api.openai.com/v1/models", headers=headers
-    )
+    try:
+        response = requests.get(
+            "https://api.openai.com/v1/models", headers=headers
+        )
+        return response.status_code == 200
+    except requests.RequestException:
+        return False
 
-    return response.status_code == 200
+
+def is_anthropic_api_key_valid(anthropic_api_key: str) -> bool:
+    """
+    Return True if the given Anthropic API key is valid.
+    """
+
+    headers = {
+        "x-api-key": anthropic_api_key,
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01"
+    }
+    payload = {
+        "model": "claude-2.1",
+        "max_tokens": 10,
+        "messages": [
+            {"role": "user", "content": "Hello, world!"}
+        ]
+    }
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers=headers,
+            json=payload,
+        )
+        return response.status_code == 200
+    except requests.RequestException:
+        return False
 
 
 def is_bing_subscription_key_valid(bing_subscription_key: str) -> bool:
@@ -246,8 +277,8 @@ def run_agent(
 
     if model.startswith("gpt-"):
         ChatModel = ChatOpenAI
-        if image_urls:
-            model = "gpt-4o"
+    elif model.startswith("claude-"):
+        ChatModel = ChatAnthropic
     else:
         ChatModel = ChatGoogleGenerativeAI
 
@@ -301,6 +332,9 @@ def run_agent(
         else:
             human_message = HumanMessage(content=query)
         st.session_state.history.append(human_message)
+
+        if isinstance(generated_text, list):
+            generated_text = generated_text[0]["text"]
         st.session_state.history.append(AIMessage(content=generated_text))
 
     except Exception as e:
@@ -919,7 +953,9 @@ def create_text(model: str) -> None:
         if model == "gemini-1.5-flash":
             agent_type = "Tool Calling"
             st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
-        elif model == "gemini-1.0-pro":
+        elif model in (
+            "gemini-1.0-pro", "claude-3-haiku-20240307", "claude-3-sonnet-20240229"
+        ):
             agent_type = "ReAct"
             st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
         else:
@@ -1137,25 +1173,42 @@ def create_text_image() -> None:
             st.session_state.model_type = st.sidebar.radio(
                 label="Model type",
                 options=(
-                    "GPT Models from OpenAI", "Gemini Models from Google"
+                    "GPT Models from OpenAI",
+                    "Claude Models from Anthropic",
+                    "Gemini Models from Google",
                 ),
                 on_change=check_api_keys,
                 label_visibility="collapsed",
             )
             st.write("")
-            if st.session_state.model_type == "GPT Models from OpenAI":
+            if st.session_state.model_type in (
+                "GPT Models from OpenAI", "Claude Models from Anthropic"
+            ):
                 validity = "(Verified)" if st.session_state.ready else ""
-                st.write(
-                    "**OpenAI API Key** ",
-                    f"<small>:blue[{validity}]</small>",
-                    unsafe_allow_html=True
-                )
-                openai_api_key = st.text_input(
-                    label="OpenAI API Key",
-                    type="password",
-                    on_change=check_api_keys,
-                    label_visibility="collapsed",
-                )
+                if st.session_state.model_type == "GPT Models from OpenAI":
+                    st.write(
+                        "**OpenAI API Key** ",
+                        f"<small>:blue[{validity}]</small>",
+                        unsafe_allow_html=True
+                    )
+                    openai_api_key = st.text_input(
+                        label="OpenAI API Key",
+                        type="password",
+                        on_change=check_api_keys,
+                        label_visibility="collapsed",
+                    )
+                else:
+                    st.write(
+                        "**Anthropic API Key** ",
+                        f"<small>:blue[{validity}]</small>",
+                        unsafe_allow_html=True
+                    )
+                    anthropic_api_key = st.text_input(
+                        label="Anthropic API Key",
+                        type="password",
+                        on_change=check_api_keys,
+                        label_visibility="collapsed",
+                    )
                 if st.session_state.bing_subscription_validity:
                     validity = "(Verified)"
                 else:
@@ -1204,6 +1257,7 @@ def create_text_image() -> None:
             authentication = True
         else:
             openai_api_key = st.secrets["OPENAI_API_KEY"]
+            anthropic_api_key = st.secrets["ANTHROPIC_API_KEY"]
             bing_subscription_key = st.secrets["BING_SUBSCRIPTION_KEY"]
             google_api_key = st.secrets["GOOGLE_API_KEY"]
             google_cse_id = st.secrets["GOOGLE_CSE_ID"]
@@ -1222,6 +1276,7 @@ def create_text_image() -> None:
         if not st.session_state.ready:
             if choice_api == "My keys":
                 os.environ["OPENAI_API_KEY"] = openai_api_key
+                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
                 os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
                 st.session_state.bing_subscription_validity = True
                 st.session_state.openai = OpenAI()
@@ -1234,11 +1289,19 @@ def create_text_image() -> None:
                 date_string = str(current_date)
                 os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
             else:
-                if st.session_state.model_type == "GPT Models from OpenAI":
-                    if is_openai_api_key_valid(openai_api_key):
-                        os.environ["OPENAI_API_KEY"] = openai_api_key
-                        st.session_state.openai = OpenAI()
-                        st.session_state.ready = True
+                if st.session_state.model_type in (
+                    "GPT Models from OpenAI", "Claude Models from Anthropic"
+                ):
+                    if st.session_state.model_type == "GPT Models from OpenAI":
+                        if is_openai_api_key_valid(openai_api_key):
+                            os.environ["OPENAI_API_KEY"] = openai_api_key
+                            st.session_state.openai = OpenAI()
+                            st.session_state.ready = True
+                    else:
+                        if is_anthropic_api_key_valid(anthropic_api_key):
+                            os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+                            st.session_state.ready = True
+                    if st.session_state.ready:
                         if is_bing_subscription_key_valid(bing_subscription_key):
                             os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
                             st.session_state.bing_subscription_validity = True
@@ -1307,6 +1370,8 @@ def create_text_image() -> None:
             model_options=(
                 "gpt-4o-mini",
                 "gpt-4o",
+                "claude-3-haiku-20240307",
+                "claude-3-sonnet-20240229",
                 "gemini-1.0-pro",
                 "gemini-1.5-pro",
                 "gemini-1.5-flash",
@@ -1318,6 +1383,11 @@ def create_text_image() -> None:
                     "gpt-4o-mini",
                     "gpt-4o",
                     "dall-e-3",
+                )
+            elif st.session_state.model_type == "Claude Models from Anthropic":
+                model_options=(
+                    "claude-3-haiku-20240307",
+                    "claude-3-sonnet-20240229",
                 )
             else:
                 model_options=(
