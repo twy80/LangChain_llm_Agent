@@ -308,33 +308,31 @@ def run_agent(
             )
             message_with_images = [HumanMessage(content=content_with_images)]
             generated_text = llm.invoke(message_with_images).content
-        elif tools:
-            if agent_type == "Tool Calling":
-                agent = create_tool_calling_agent(
-                    llm, tools, st.session_state.agent_prompt
-                )
-            else:
-                agent = create_react_agent(
-                    llm, tools, st.session_state.agent_prompt
-                )
-            agent_executor = AgentExecutor(
-                agent=agent, tools=tools, max_iterations=5, verbose=False,
-                handle_parsing_errors=True,
-            )
-            generated_text = agent_executor.invoke(history_query)["output"]
-        else:
-            generated_text = llm.invoke(message_with_no_image).content
-
-        if image_urls:
             human_message = HumanMessage(
                 content=query, additional_kwargs={"image_urls": image_urls}
             )
         else:
+            if tools:
+                if agent_type == "Tool Calling":
+                    agent = create_tool_calling_agent(
+                        llm, tools, st.session_state.agent_prompt
+                    )
+                else:
+                    agent = create_react_agent(
+                        llm, tools, st.session_state.agent_prompt
+                    )
+                agent_executor = AgentExecutor(
+                    agent=agent, tools=tools, max_iterations=5, verbose=False,
+                    handle_parsing_errors=True,
+                )
+                generated_text = agent_executor.invoke(history_query)["output"]
+            else:
+                generated_text = llm.invoke(message_with_no_image).content
             human_message = HumanMessage(content=query)
-        st.session_state.history.append(human_message)
 
         if isinstance(generated_text, list):
             generated_text = generated_text[0]["text"]
+        st.session_state.history.append(human_message)
         st.session_state.history.append(AIMessage(content=generated_text))
 
     except Exception as e:
@@ -1340,7 +1338,7 @@ def create_text_image() -> None:
                       [here](https://portal.azure.com/) or Google CSE ID
                       [here](https://programmablesearchengine.google.com/about/).
                       If you do not plan to search the internet, there is no need
-                      to enter your Bing Subscription key.
+                      to enter your Bing Subscription key or Google CSE ID.
                     """
                 )
                 st.image("files/Streamlit_Agent_App.png")
@@ -1359,6 +1357,10 @@ def create_text_image() -> None:
         st.info("**Enter the correct password in the sidebar**")
         st.stop()
 
+    gpt_models = ("gpt-4o-mini", "gpt-4o")
+    claude_models = ("claude-3-haiku-20240307", "claude-3-sonnet-20240229")
+    gemini_models = ("gemini-1.0-pro", "gemini-1.5-flash")
+
     with st.sidebar:
         if choice_api == "My keys":
             st.write("")
@@ -1376,32 +1378,16 @@ def create_text_image() -> None:
         st.write("")
         st.write("**Model**")
         if choice_api == "My keys":
-            model_options=(
-                "gpt-4o-mini",
-                "gpt-4o",
-                "claude-3-haiku-20240307",
-                "claude-3-sonnet-20240229",
-                "gemini-1.0-pro",
-                "gemini-1.5-flash",
-                "dall-e-3",
-            )
+            model_options = gpt_models + claude_models + gemini_models
+            model_options += ("dall-e-3",)
         else:
             if st.session_state.model_type == "GPT Models from OpenAI":
-                model_options=(
-                    "gpt-4o-mini",
-                    "gpt-4o",
-                    "dall-e-3",
-                )
+                model_options = gpt_models + ("dall-e-3",)
             elif st.session_state.model_type == "Claude Models from Anthropic":
-                model_options=(
-                    "claude-3-haiku-20240307",
-                    "claude-3-sonnet-20240229",
-                )
+                model_options = claude_models
             else:
-                model_options=(
-                    "gemini-1.0-pro",
-                    "gemini-1.5-flash",
-                )
+                model_options = gemini_models
+
         model = st.radio(
             label="Models",
             options=model_options,
