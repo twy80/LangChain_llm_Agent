@@ -882,7 +882,7 @@ def set_prompts(agent_type: Literal["Tool Calling", "ReAct"]) -> None:
             "```\n"
             "Thought: Do I need to use a tool? No\n"
             "Final Answer: [your response here]\n"
-            "```\n\n"
+            "\n\n"
             "Begin!\n\n"
             "Previous conversation history:\n\n"
             "{chat_history}\n\n"
