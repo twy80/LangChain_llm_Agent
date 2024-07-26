@@ -948,11 +948,8 @@ def create_text(model: str) -> None:
 
     with st.sidebar:
         st.write("")
-        if model == "gemini-1.5-flash":
-            agent_type = "Tool Calling"
-            st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
-        elif model in (
-            "gemini-1.0-pro", "claude-3-haiku-20240307", "claude-3-sonnet-20240229"
+        if model in (
+            "claude-3-haiku-20240307", "claude-3-sonnet-20240229"
         ):
             agent_type = "ReAct"
             st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
@@ -1359,7 +1356,7 @@ def create_text_image() -> None:
 
     gpt_models = ("gpt-4o-mini", "gpt-4o")
     claude_models = ("claude-3-haiku-20240307", "claude-3-sonnet-20240229")
-    gemini_models = ("gemini-1.0-pro", "gemini-1.5-flash")
+    gemini_models = ("gemini-1.5-flash", "gemini-1.5-pro")
 
     with st.sidebar:
         if choice_api == "My keys":
