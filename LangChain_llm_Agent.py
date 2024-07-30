@@ -945,7 +945,7 @@ def create_text(model: str) -> None:
     with st.sidebar:
         st.write("")
         if model in (
-            "claude-3-haiku-20240307", "claude-3-sonnet-20240229"
+            "claude-3-haiku-20240307", "claude-3-5-sonnet-20240620"
         ):
             agent_type = "ReAct"
             st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
