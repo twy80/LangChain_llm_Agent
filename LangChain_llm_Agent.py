@@ -248,6 +248,79 @@ def message_history_to_string(extra_space: bool=True) -> str:
     return new_lines.join(history_list)
 
 
+def get_chat_model(
+    model: str,
+    temperature: float,
+    callbacks: List[BaseCallbackHandler]
+) -> Union[ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI, None]:
+
+    """
+    Get the appropriate chat model based on the given model name.
+    """
+
+    model_map = {
+        "gpt-": ChatOpenAI,
+        "claude-": ChatAnthropic,
+        "gemini-": ChatGoogleGenerativeAI
+    }
+    for prefix, ModelClass in model_map.items():
+        if model.startswith(prefix):
+            return ModelClass(
+                model=model,
+                temperature=temperature,
+                streaming=True,
+                callbacks=callbacks
+            )
+
+    st.error(f"Unsupported model: {model}", icon="🚨")
+    return None
+
+
+def process_with_images(
+    llm: Union[ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI],
+    message_content: str,
+    image_urls: List[str]
+) -> str:
+
+    """
+    Process the given history query with associated images using a language model.
+    """
+
+    content_with_images = (
+        [{"type": "text", "text": message_content}] +
+        [{"type": "image_url", "image_url": {"url": url}} for url in image_urls]
+    )
+    message_with_images = [HumanMessage(content=content_with_images)]
+
+    return llm.invoke(message_with_images).content
+
+
+def process_with_tools(
+    llm: Union[ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI],
+    tools: List[Tool],
+    agent_type: str,
+    agent_prompt: str,
+    history_query: dict
+) -> str:
+
+    """
+    Create an AI agent based on the specified agent type and tools,
+    then use this agent to process the given history query.
+    """
+
+    if agent_type == "Tool Calling":
+        agent = create_tool_calling_agent(llm, tools, agent_prompt)
+    else:
+        agent = create_react_agent(llm, tools, agent_prompt)
+
+    agent_executor = AgentExecutor(
+        agent=agent, tools=tools, max_iterations=5, verbose=False,
+        handle_parsing_errors=True,
+    )
+
+    return agent_executor.invoke(history_query)["output"]
+
+
 def run_agent(
     query: str,
     model: str,
@@ -255,7 +328,7 @@ def run_agent(
     image_urls: List[str],
     temperature: float=0.7,
     agent_type: Literal["Tool Calling", "ReAct"]="Tool Calling",
-) -> str:
+) -> Union[str, None]:
 
     """
     Generate text based on user queries.
@@ -275,71 +348,44 @@ def run_agent(
     st.session_state variables.
     """
 
-    if model.startswith("gpt-"):
-        ChatModel = ChatOpenAI
-    elif model.startswith("claude-"):
-        ChatModel = ChatAnthropic
-    else:
-        ChatModel = ChatGoogleGenerativeAI
-
-    llm = ChatModel(
-        model=model,
-        temperature=temperature,
-        streaming=True,
-        callbacks=[StreamHandler(st.empty())]
-    )
-
-    if agent_type == "Tool Calling":
-        chat_history = st.session_state.history
-    else:
-        chat_history = message_history_to_string()
-
-    history_query = {
-        "chat_history": chat_history,
-        "input": query,
-    }
-    message_with_no_image = st.session_state.chat_prompt.invoke(history_query)
-
     try:
+        llm = get_chat_model(model, temperature, [StreamHandler(st.empty())])
+        
+        if agent_type == "Tool Calling":
+            chat_history = st.session_state.history
+        else:
+            chat_history = message_history_to_string()
+
+        history_query = {"chat_history": chat_history, "input": query}
+        
+        message_with_no_image = st.session_state.chat_prompt.invoke(history_query)
+        message_content = message_with_no_image.messages[0].content
+
         if image_urls:
-            content_with_images = (
-                [{"type": "text", "text": message_with_no_image.messages[0].content}] +
-                [{"type": "image_url", "image_url": {"url": url}} for url in image_urls]
-            )
-            message_with_images = [HumanMessage(content=content_with_images)]
-            generated_text = llm.invoke(message_with_images).content
+            generated_text = process_with_images(llm, message_content, image_urls)
             human_message = HumanMessage(
                 content=query, additional_kwargs={"image_urls": image_urls}
             )
+        elif tools:
+            generated_text = process_with_tools(
+                llm, tools, agent_type, st.session_state.agent_prompt, history_query
+            )
+            human_message = HumanMessage(content=query)
         else:
-            if tools:
-                if agent_type == "Tool Calling":
-                    agent = create_tool_calling_agent(
-                        llm, tools, st.session_state.agent_prompt
-                    )
-                else:
-                    agent = create_react_agent(
-                        llm, tools, st.session_state.agent_prompt
-                    )
-                agent_executor = AgentExecutor(
-                    agent=agent, tools=tools, max_iterations=5, verbose=False,
-                    handle_parsing_errors=True,
-                )
-                generated_text = agent_executor.invoke(history_query)["output"]
-            else:
-                generated_text = llm.invoke(message_with_no_image).content
+            generated_text = llm.invoke(message_with_no_image).content
             human_message = HumanMessage(content=query)
 
         if isinstance(generated_text, list):
             generated_text = generated_text[0]["text"]
+
         st.session_state.history.append(human_message)
         st.session_state.history.append(AIMessage(content=generated_text))
 
-    except Exception as e:
-        generated_text = None
-        st.error(f"An error occurred: {e}", icon="🚨")
+        return generated_text
 
-    return generated_text
+    except Exception as e:
+        st.error(f"An error occurred: {e}", icon="🚨")
+        return None
 
 
 def openai_create_image(
