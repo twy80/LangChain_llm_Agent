@@ -271,8 +271,6 @@ def get_chat_model(
                 streaming=True,
                 callbacks=callbacks
             )
-
-    st.error(f"Unsupported model: {model}", icon="🚨")
     return None
 
 
@@ -350,6 +348,9 @@ def run_agent(
 
     try:
         llm = get_chat_model(model, temperature, [StreamHandler(st.empty())])
+        if llm is None:
+            st.error(f"Unsupported model: {model}", icon="🚨")
+            return None
         
         if agent_type == "Tool Calling":
             chat_history = st.session_state.history
