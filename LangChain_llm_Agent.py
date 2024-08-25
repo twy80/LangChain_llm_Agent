@@ -994,7 +994,7 @@ def deserialize_messages(
     return deserialized_messages
 
 
-def show_uploader():
+def show_uploader() -> None:
     """
     Set the flag to show the uploader
     """
