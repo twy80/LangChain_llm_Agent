@@ -3,7 +3,7 @@ LangChain Agents (by T.-W. Yoon, Mar. 2024)
 """
 
 import streamlit as st
-import os, base64, re, requests, datetime, time
+import os, base64, re, requests, datetime, time, json
 import matplotlib.pyplot as plt
 from io import BytesIO
 from functools import partial
@@ -36,7 +36,7 @@ from langchain_experimental.tools import PythonREPLTool
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.pydantic_v1 import BaseModel, Field
 # The following are for type annotations
-from typing import Union, List, Literal, Optional
+from typing import Union, List, Literal, Optional, Dict
 from matplotlib.figure import Figure
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from openai._legacy_response import HttpxBinaryResponseContent
@@ -106,6 +106,9 @@ def initialize_session_state_variables() -> None:
 
     if "retriever_tool" not in st.session_state:
         st.session_state.retriever_tool = None
+
+    if "show_uploader" not in st.session_state:
+        st.session_state.show_uploader = False
 
 
 class StreamHandler(BaseCallbackHandler):
@@ -963,6 +966,42 @@ def print_conversation(no_of_msgs: Union[Literal["All"], int]) -> None:
         st.session_state.audio_response = None
 
 
+def serialize_messages(
+    messages: List[Union[HumanMessage, AIMessage]]
+) -> List[Dict]:
+
+    """
+    Serialize the list of messages into a list of dicts
+    """
+
+    return [msg.dict() for msg in messages]
+
+
+def deserialize_messages(
+    serialized_messages: List[Dict]
+) -> List[Union[HumanMessage, AIMessage]]:
+
+    """
+    Deserialize the list of messages from a list of dicts
+    """
+
+    deserialized_messages = []
+    for msg in serialized_messages:
+        if msg['type'] == 'human':
+            deserialized_messages.append(HumanMessage(**msg))
+        elif msg['type'] == 'ai':
+            deserialized_messages.append(AIMessage(**msg))
+    return deserialized_messages
+
+
+def show_uploader():
+    """
+    Set the flag to show the uploader
+    """
+
+    st.session_state.show_uploader = True
+
+
 def create_text(model: str) -> None:
     """
     Take an LLM as input and generate text based on user input
@@ -1056,18 +1095,34 @@ def create_text(model: str) -> None:
     # Print conversation
     print_conversation(no_of_msgs)
 
-    # Reset or download the conversation
-    left, right = st.columns(2)
-    left.button(
+    # Reset, download, or load the conversation
+    c1, c2, c3 = st.columns(3)
+    c1.button(
         label="$~\:\,\,$Reset$~\:\,\,$",
         on_click=reset_conversation
     )
-    right.download_button(
+    c2.download_button(
         label="Download",
-        data=message_history_to_string(),
-        file_name="conversation_with_agent.txt",
-        mime="text/plain"
+        data=json.dumps(serialize_messages(st.session_state.history)),
+        file_name="conversation_with_agent.json",
+        mime="application/json",
     )
+    c3.button(
+        label="$~~\:\,$Load$~~\:\,$",
+        on_click=show_uploader,
+    )
+
+    if st.session_state.show_uploader:
+        st.write("")
+        st.write("**Choose a (JSON) conversation file**")
+        uploaded_file = st.file_uploader(
+            label="Load conversation", type="json", label_visibility="collapsed"
+        )
+        if uploaded_file:
+            uploaded_data = json.load(uploaded_file)
+            st.session_state.history = deserialize_messages(uploaded_data)
+            st.session_state.show_uploader = False
+            st.rerun()
 
     # Set the agent prompts and tools
     set_prompts(agent_type)
