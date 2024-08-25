@@ -1002,6 +1002,27 @@ def show_uploader():
     st.session_state.show_uploader = True
 
 
+def load_conversation() -> bool:
+    """
+    Load the conversation from a JSON file
+    """
+
+    st.write("")
+    st.write("**Choose a (JSON) conversation file**")
+    uploaded_file = st.file_uploader(
+        label="Load conversation", type="json", label_visibility="collapsed"
+    )
+    if uploaded_file:
+        try:
+            uploaded_data = json.load(uploaded_file)
+            st.session_state.history = deserialize_messages(uploaded_data)
+            return True
+        except Exception as e:
+            st.error(f"An error occurred while loading the file: {str(e)}")
+
+    return False
+
+
 def create_text(model: str) -> None:
     """
     Take an LLM as input and generate text based on user input
@@ -1112,17 +1133,9 @@ def create_text(model: str) -> None:
         on_click=show_uploader,
     )
 
-    if st.session_state.show_uploader:
-        st.write("")
-        st.write("**Choose a (JSON) conversation file**")
-        uploaded_file = st.file_uploader(
-            label="Load conversation", type="json", label_visibility="collapsed"
-        )
-        if uploaded_file:
-            uploaded_data = json.load(uploaded_file)
-            st.session_state.history = deserialize_messages(uploaded_data)
-            st.session_state.show_uploader = False
-            st.rerun()
+    if st.session_state.show_uploader and load_conversation():
+        st.session_state.show_uploader = False
+        st.rerun()
 
     # Set the agent prompts and tools
     set_prompts(agent_type)
