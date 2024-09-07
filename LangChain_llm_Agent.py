@@ -25,18 +25,19 @@ from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain.tools import Tool
+from langchain.tools import Tool, tool
 from langchain.tools.retriever import create_retriever_tool
 # from langchain.agents import create_openai_tools_agent
 from langchain.agents import create_tool_calling_agent
 from langchain.agents import create_react_agent
 from langchain.agents import AgentExecutor
 from langchain_community.agent_toolkits.load_tools import load_tools
-from langchain_experimental.tools import PythonREPLTool
+# from langchain_experimental.tools import PythonREPLTool
+from langchain_experimental.utilities import PythonREPL
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.pydantic_v1 import BaseModel, Field
 # The following are for type annotations
-from typing import Union, List, Literal, Optional, Dict
+from typing import Union, List, Literal, Optional, Dict, Any, Annotated
 from matplotlib.figure import Figure
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from openai._legacy_response import HttpxBinaryResponseContent
@@ -116,9 +117,21 @@ class StreamHandler(BaseCallbackHandler):
         self.container = container
         self.text = initial_text
 
-    def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.text += token
-        self.container.markdown(self.text)
+    def on_llm_new_token(self, token: Any, **kwargs) -> None:
+        new_text = self._extract_text(token)
+        if new_text:
+            self.text += new_text
+            self.container.markdown(self.text)
+
+    def _extract_text(self, token: Any) -> str:
+        if isinstance(token, str):
+            return token
+        elif isinstance(token, list):
+            return ''.join(self._extract_text(t) for t in token)
+        elif isinstance(token, dict):
+            return token.get('text', '')
+        else:
+            return str(token)
 
 
 def is_openai_api_key_valid(openai_api_key: str) -> bool:
@@ -774,6 +787,22 @@ def switch_between_apps() -> None:
     st.session_state.agent_type[1] = st.session_state.agent_type[0]
 
 
+@tool
+def python_repl(
+    code: Annotated[str, "The python code to execute to generate your chart."],
+):
+    """Use this to execute python code. If you want to see the output of a value,
+    you should print it out with `print(...)`. This is visible to the user."""
+    try:
+        result = PythonREPL().run(code)
+    except BaseException as e:
+        return f"Failed to execute. Error: {repr(e)}"
+    result_str = f"Successfully executed:\n```python\n{code}\n```\nStdout: {result}"
+    return (
+        result_str + "\n\nIf you have completed all tasks, respond with FINAL ANSWER."
+    )
+
+
 def set_tools() -> List[Tool]:
     """
     Set and return the tools for the agent. Tools that can be selected
@@ -786,7 +815,7 @@ def set_tools() -> List[Tool]:
 
     arxiv = load_tools(["arxiv"])[0]
     wikipedia = load_tools(["wikipedia"])[0]
-    python_repl = PythonREPLTool()
+    # python_repl = PythonREPLTool()
 
     tool_options = ["ArXiv", "Wikipedia", "Python_REPL", "Retrieval"]
     tool_dictionary = {
@@ -1051,21 +1080,15 @@ def create_text(model: str) -> None:
 
     with st.sidebar:
         st.write("")
-        if model in (
-            "claude-3-haiku-20240307", "claude-3-5-sonnet-20240620"
-        ):
-            agent_type = "ReAct"
-            st.write(f"**Agent Type**: $\,$:blue[{agent_type}]")
-        else:
-            type_options = ("Tool Calling", "ReAct")
-            st.write("**Agent Type**")
-            st.session_state.agent_type[0] = st.sidebar.radio(
-                label="Agent Type",
-                options=type_options,
-                index=type_options.index(st.session_state.agent_type[1]),
-                label_visibility="collapsed",
-            )
-            agent_type = st.session_state.agent_type[0]
+        type_options = ("Tool Calling", "ReAct")
+        st.write("**Agent Type**")
+        st.session_state.agent_type[0] = st.sidebar.radio(
+            label="Agent Type",
+            options=type_options,
+            index=type_options.index(st.session_state.agent_type[1]),
+            label_visibility="collapsed",
+        )
+        agent_type = st.session_state.agent_type[0]
         if st.session_state.model_type == "GPT Models from OpenAI":
             st.write("")
             st.write("**Text to Speech**")
@@ -1435,7 +1458,7 @@ def create_text_image() -> None:
                     - For GPT models such as 'gpt-4o', you can obtain an OpenAI
                       API key from https://platform.openai.com/account/api-keys.
 
-                    - For Claude models such as 'claude-3-sonnet', you can
+                    - For Claude models such as 'claude-3.5-sonnet', you can
                       obtain an Anthropic API key from
                       https://console.anthropic.com/settings/keys.
 
