@@ -1025,10 +1025,24 @@ def deserialize_messages(
 
 def show_uploader() -> None:
     """
-    Set the flag to show the uploader
+    Set the flag to show the uploader.
     """
 
     st.session_state.show_uploader = True
+
+
+def check_conversation_keys(lst: List[Dict[str, Any]]) -> bool:
+    """
+    Check if all items in the given list are valid conversation entries.
+    """
+
+    return all(
+        isinstance(item, dict) and
+        isinstance(item.get("content"), str) and
+        isinstance(item.get("type"), str) and
+        isinstance(item.get("additional_kwargs"), dict)
+        for item in lst
+    )
 
 
 def load_conversation() -> bool:
@@ -1043,11 +1057,15 @@ def load_conversation() -> bool:
     )
     if uploaded_file:
         try:
-            uploaded_data = json.load(uploaded_file)
-            st.session_state.history = deserialize_messages(uploaded_data)
-            return True
+            data = json.load(uploaded_file)
+            if isinstance(data, list) and check_conversation_keys(data):
+                st.session_state.history = deserialize_messages(data)
+                return True
+            st.error(
+                f"The uploaded data does not conform to the expected format.", icon="🚨"
+            )
         except Exception as e:
-            st.error(f"An error occurred while loading the file: {str(e)}")
+            st.error(f"An error occurred: {e}", icon="🚨")
 
     return False
 
