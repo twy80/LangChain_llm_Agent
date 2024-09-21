@@ -35,7 +35,7 @@ from langchain_community.agent_toolkits.load_tools import load_tools
 # from langchain_experimental.tools import PythonREPLTool
 from langchain_experimental.utilities import PythonREPL
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 # The following are for type annotations
 from typing import Union, List, Literal, Optional, Dict, Any, Annotated
 from matplotlib.figure import Figure
