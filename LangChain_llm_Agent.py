@@ -1165,7 +1165,7 @@ def create_text(model: str) -> None:
     )
     c2.download_button(
         label="Download",
-        data=json.dumps(serialize_messages(st.session_state.history)),
+        data=json.dumps(serialize_messages(st.session_state.history), indent=4),
         file_name="conversation_with_agent.json",
         mime="application/json",
     )
