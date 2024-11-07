@@ -737,12 +737,12 @@ def fig_to_base64(fig: Figure) -> str:
     the resulting encoded image to be used in place of a URL.
     """
 
-    buffer = BytesIO()
-    fig.savefig(buffer, format="png")
-    buffer.seek(0)
-    image = Image.open(buffer)
+    with BytesIO() as buffer:
+        fig.savefig(buffer, format="JPEG")
+        buffer.seek(0)
+        image = Image.open(buffer)
 
-    return image_to_base64(image)
+        return image_to_base64(image)
 
 
 def is_url(text: str) -> bool:
