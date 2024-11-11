@@ -1507,7 +1507,7 @@ def create_text_image() -> None:
         st.stop()
 
     gpt_models = ("gpt-4o-mini", "gpt-4o")
-    claude_models = ("claude-3-haiku-20240307", "claude-3-5-sonnet-latest")
+    claude_models = ("claude-3-5-haiku-latest", "claude-3-5-sonnet-latest")
     gemini_models = ("gemini-1.5-flash", "gemini-1.5-pro")
 
     with st.sidebar:
