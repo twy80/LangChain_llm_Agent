@@ -3,12 +3,11 @@ LangChain Agents (by T.-W. Yoon, Mar. 2024)
 """
 
 import streamlit as st
-import os, base64, re, requests, datetime, time, json
+import os, base64, requests, datetime, json
 import matplotlib.pyplot as plt
 from io import BytesIO
 from functools import partial
 from tempfile import NamedTemporaryFile
-from audio_recorder_streamlit import audio_recorder
 from PIL import Image, UnidentifiedImageError
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
@@ -19,7 +18,6 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_google_community import GoogleSearchAPIWrapper
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema import HumanMessage, AIMessage
-from langchain_community.utilities import BingSearchAPIWrapper
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import TextLoader
@@ -27,9 +25,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain.tools import Tool, tool
 from langchain.tools.retriever import create_retriever_tool
-# from langchain.agents import create_openai_tools_agent
 from langchain.agents import create_tool_calling_agent
-from langchain.agents import create_react_agent
 from langchain.agents import AgentExecutor
 from langchain_community.agent_toolkits.load_tools import load_tools
 # from langchain_experimental.tools import PythonREPLTool
@@ -40,7 +36,6 @@ from pydantic import BaseModel, Field
 from typing import Union, List, Literal, Optional, Dict, Any, Annotated
 from matplotlib.figure import Figure
 from streamlit.runtime.uploaded_file_manager import UploadedFile
-from openai._legacy_response import HttpxBinaryResponseContent
 
 
 def initialize_session_state_variables() -> None:
@@ -49,68 +44,36 @@ def initialize_session_state_variables() -> None:
     """
 
     # Variables for chatbot
-    if "ready" not in st.session_state:
-        st.session_state.ready = False
-
-    if "openai" not in st.session_state:
-        st.session_state.openai = None
-
     if "history" not in st.session_state:
         st.session_state.history = []
-
-    if "model_type" not in st.session_state:
-        st.session_state.model_type = "GPT Models from OpenAI"
-
-    if "agent_type" not in st.session_state:
-        st.session_state.agent_type = 2 * ["Tool Calling"]
-
     if "ai_role" not in st.session_state:
-        st.session_state.ai_role = 2 * ["You are a helpful AI assistant."]
-
+        st.session_state.ai_role = 2 * ["You are a helpful assistant."]
     if "prompt_exists" not in st.session_state:
         st.session_state.prompt_exists = False
-
-    if "temperature" not in st.session_state:
-        st.session_state.temperature = [0.7, 0.7]
-
-    # Variables for audio and image
-    if "audio_bytes" not in st.session_state:
-        st.session_state.audio_bytes = None
-
-    if "mic_used" not in st.session_state:
-        st.session_state.mic_used = False
-
-    if "audio_response" not in st.session_state:
-        st.session_state.audio_response = None
-
-    if "image_url" not in st.session_state:
-        st.session_state.image_url = None
-
-    if "image_description" not in st.session_state:
-        st.session_state.image_description = None
-
     if "uploader_key" not in st.session_state:
         st.session_state.uploader_key = 0
 
     # Variables for tools
     if "tool_names" not in st.session_state:
         st.session_state.tool_names = [[], []]
-
-    if "bing_subscription_validity" not in st.session_state:
-        st.session_state.bing_subscription_validity = False
-
-    if "google_cse_id_validity" not in st.session_state:
-        st.session_state.google_cse_id_validity = False
-
     if "vector_store_message" not in st.session_state:
         st.session_state.vector_store_message = None
-
     if "retriever_tool" not in st.session_state:
         st.session_state.retriever_tool = None
-
     if "show_uploader" not in st.session_state:
         st.session_state.show_uploader = False
 
+    # Variables for API key validation
+    if "ready" not in st.session_state:
+        st.session_state.ready = False
+    if "anthropic_key_validity" not in st.session_state:
+        st.session_state.anthropic_key_validity = False
+    if "google_key_validity" not in st.session_state:
+        st.session_state.google_key_validity = False
+    if "google_cse_id_validity" not in st.session_state:
+        st.session_state.google_cse_id_validity = False
+    if "openai_key_validity" not in st.session_state:
+        st.session_state.openai_key_validity = False
 
 class StreamHandler(BaseCallbackHandler):
     def __init__(self, container, initial_text=""):
@@ -162,10 +125,10 @@ def is_anthropic_api_key_valid(anthropic_api_key: str) -> bool:
         "anthropic-version": "2023-06-01"
     }
     payload = {
-        "model": "claude-2.1",
+        "model": "claude-3-5-haiku-latest",
         "max_tokens": 10,
         "messages": [
-            {"role": "user", "content": "Hello, world!"}
+            {"role": "user", "content": "Hi."}
         ]
     }
     try:
@@ -179,26 +142,6 @@ def is_anthropic_api_key_valid(anthropic_api_key: str) -> bool:
         return False
 
 
-def is_bing_subscription_key_valid(bing_subscription_key: str) -> bool:
-    """
-    Return True if the given Bing subscription key is valid.
-    """
-
-    if not bing_subscription_key:
-        return False
-    try:
-        search = BingSearchAPIWrapper(
-            bing_subscription_key=bing_subscription_key,
-            bing_search_url="https://api.bing.microsoft.com/v7.0/search",
-            k=1
-        )
-        search.run("Where can I get a Bing subscription key?")
-    except:
-        return False
-    else:
-        return True
-
-
 def is_google_api_key_valid(google_api_key: str) -> bool:
     """
     Return True if the given Google API key is valid.
@@ -208,7 +151,7 @@ def is_google_api_key_valid(google_api_key: str) -> bool:
         return False
 
     gemini_llm = ChatGoogleGenerativeAI(
-        model="gemini-pro", google_api_key=google_api_key
+        model="gemini-2.5-flash", google_api_key=google_api_key
     )
     try:
         gemini_llm.invoke("Hello")
@@ -233,17 +176,77 @@ def are_google_api_key_cse_id_valid(
                 google_cse_id=google_cse_id,
                 k=1
             )
-            search.run("Where can I get a Google CSE ID?")
+            result = search.run("test query")
+            return (
+                not isinstance(result, str) or
+                not result.startswith("Google Search Error")
+            )
         except:
             return False
-        else:
-            return True
     else:
         return False
 
 
+def check_openai_key(openai_api_key: str) -> None:
+    """
+    Check if the given OpenAI API key is valid.
+    """
+
+    if is_openai_api_key_valid(openai_api_key):
+        st.session_state.openai_key_validity = True
+        os.environ["OPENAI_API_KEY"] = openai_api_key
+    else:
+        st.session_state.openai_key_validity = False
+        os.environ["OPENAI_API_KEY"] = ""
+
+
+def check_anthropic_key(anthropic_api_key: str) -> None:
+    """
+    Check if the given OpenAI API key is valid.
+    """
+
+    if is_anthropic_api_key_valid(anthropic_api_key):
+        st.session_state.anthropic_key_validity = True
+        os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+    else:
+        st.session_state.anthropic_key_validity = False
+        os.environ["ANTHROPIC_API_KEY"] = ""
+
+
+def check_google_key(google_api_key: str) -> None:
+    """
+    Check if the given OpenAI API key is valid.
+    """
+
+    if is_google_api_key_valid(google_api_key):
+        st.session_state.google_key_validity = True
+        os.environ["GOOGLE_API_KEY"] = google_api_key
+    else:
+        st.session_state.google_key_validity = False
+        os.environ["GOOGLE_API_KEY"] = ""
+
+
+def check_google_cse_id(google_cse_id: str) -> None:
+    """
+    Check if the given OpenAI API key is valid.
+    """
+
+    if (
+        st.session_state.google_key_validity and
+        are_google_api_key_cse_id_valid(os.environ["GOOGLE_API_KEY"], google_cse_id)
+    ):
+        st.session_state.google_cse_id_validity = True
+        os.environ["GOOGLE_CSE_ID"] = google_cse_id
+    else:
+        st.session_state.google_cse_id_validity = False
+        os.environ["GOOGLE_CSE_ID"] = ""
+
+
 def check_api_keys() -> None:
-    # Unset this flag to check the validity of the OpenAI API key
+    """
+    Unset this flag to check the validity of the API keys
+    """
+
     st.session_state.ready = False
 
 
@@ -275,9 +278,9 @@ def get_chat_model(
     """
 
     model_map = {
-        "gpt-": ChatOpenAI,
         "claude-": ChatAnthropic,
-        "gemini-": ChatGoogleGenerativeAI
+        "gemini-": ChatGoogleGenerativeAI,
+        "gpt-": ChatOpenAI
     }
     for prefix, ModelClass in model_map.items():
         if model.startswith(prefix):
@@ -312,7 +315,6 @@ def process_with_images(
 def process_with_tools(
     llm: Union[ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI],
     tools: List[Tool],
-    agent_type: str,
     agent_prompt: str,
     history_query: dict
 ) -> str:
@@ -322,11 +324,7 @@ def process_with_tools(
     then use this agent to process the given history query.
     """
 
-    if agent_type == "Tool Calling":
-        agent = create_tool_calling_agent(llm, tools, agent_prompt)
-    else:
-        agent = create_react_agent(llm, tools, agent_prompt)
-
+    agent = create_tool_calling_agent(llm, tools, agent_prompt)
     agent_executor = AgentExecutor(
         agent=agent, tools=tools, max_iterations=5, verbose=False,
         handle_parsing_errors=True,
@@ -340,8 +338,7 @@ def run_agent(
     model: str,
     tools: List[Tool],
     image_urls: List[str],
-    temperature: float=0.7,
-    agent_type: Literal["Tool Calling", "ReAct"]="Tool Calling",
+    temperature: float=1.0
 ) -> Union[str, None]:
 
     """
@@ -352,8 +349,7 @@ def run_agent(
         model: LLM like "gpt-4o"
         tools: list of tools such as Search and Retrieval
         image_urls: List of URLs for images
-        temperature: Value between 0 and 1. Defaults to 0.7
-        agent_type: 'Tool Calling' or 'ReAct'
+        temperature: Value between 0 and 2. Defaults to 1.0
 
     Return:
         generated text
@@ -368,12 +364,9 @@ def run_agent(
             st.error(f"Unsupported model: {model}", icon="🚨")
             return None
         
-        if agent_type == "Tool Calling":
-            chat_history = st.session_state.history
-        else:
-            chat_history = message_history_to_string()
-
-        history_query = {"chat_history": chat_history, "input": query}
+        history_query = {
+            "chat_history": st.session_state.history, "input": query
+        }
         
         message_with_no_image = st.session_state.chat_prompt.invoke(history_query)
         message_content = message_with_no_image.messages[0].content
@@ -385,7 +378,7 @@ def run_agent(
             )
         elif tools:
             generated_text = process_with_tools(
-                llm, tools, agent_type, st.session_state.agent_prompt, history_query
+                llm, tools, st.session_state.agent_prompt, history_query
             )
             human_message = HumanMessage(content=query)
         else:
@@ -403,39 +396,6 @@ def run_agent(
     except Exception as e:
         st.error(f"An error occurred: {e}", icon="🚨")
         return None
-
-
-def openai_create_image(
-    description: str, model: str="dall-e-3", size: str="1024x1024"
-) -> Optional[str]:
-
-    """
-    Generate image based on user description.
-
-    Args:
-        description: User description
-        model: Default set to "dall-e-3"
-        size: Pixel size of the generated image
-
-    Return:
-        URL of the generated image
-    """
-
-    try:
-        with st.spinner("AI is generating..."):
-            response = st.session_state.openai.images.generate(
-                model=model,
-                prompt=description,
-                size=size,
-                quality="standard",
-                n=1,
-            )
-        image_url = response.data[0].url
-    except Exception as e:
-        image_url = None
-        st.error(f"An error occurred: {e}", icon="🚨")
-
-    return image_url
 
 
 def get_vector_store(uploaded_files: List[UploadedFile]) -> Optional[FAISS]:
@@ -484,7 +444,7 @@ def get_vector_store(uploaded_files: List[UploadedFile]) -> Optional[FAISS]:
             )
             doc = text_splitter.split_documents(documents)
             # Create a FAISS vector database.
-            if st.session_state.model_type == "GPT Models from OpenAI":
+            if st.session_state.openai_key_validity:
                 embeddings = OpenAIEmbeddings(
                     model="text-embedding-3-large", dimensions=1536
                 )
@@ -555,16 +515,14 @@ def display_text_with_equations(text: str):
     st.markdown(modified_text)
 
 
-def read_audio(audio_bytes: bytes) -> Optional[str]:
+def audio_to_text(audio_file: UploadedFile) -> Optional[str]:
     """
     Read audio bytes and return the corresponding text.
     """
-    try:
-        audio_data = BytesIO(audio_bytes)
-        audio_data.name = "recorded_audio.wav"  # dummy name
 
-        transcript = st.session_state.openai.audio.transcriptions.create(
-            model="whisper-1", file=audio_data
+    try:
+        transcript = OpenAI().audio.transcriptions.create(
+            model="whisper-1", file=audio_file
         )
         text = transcript.text
     except Exception as e:
@@ -572,68 +530,6 @@ def read_audio(audio_bytes: bytes) -> Optional[str]:
         st.error(f"An error occurred: {e}", icon="🚨")
 
     return text
-
-
-def input_from_mic() -> Optional[str]:
-    """
-    Convert audio input from mic to text and return it.
-    If there is no audio input, None is returned.
-    """
-
-    time.sleep(0.5)
-    audio_bytes = audio_recorder(
-        pause_threshold=3.0, text="Speak", icon_size="2x",
-        recording_color="#e87070", neutral_color="#6aa36f"        
-    )
-
-    if audio_bytes == st.session_state.audio_bytes or audio_bytes is None:
-        return None
-    else:
-        st.session_state.audio_bytes = audio_bytes
-        return read_audio(audio_bytes)
-
-
-def perform_tts(text: str) -> Optional[HttpxBinaryResponseContent]:
-    """
-    Take text as input, perform text-to-speech (TTS),
-    and return an audio_response.
-    """
-
-    try:
-        with st.spinner("TTS in progress..."):
-            audio_response = st.session_state.openai.audio.speech.create(
-                model="tts-1",
-                voice="fable",
-                input=text,
-            )
-    except Exception as e:
-        audio_response = None
-        st.error(f"An error occurred: {e}", icon="🚨")
-
-    return audio_response
-
-
-def play_audio(audio_response: HttpxBinaryResponseContent) -> None:
-    """
-    Take an audio response (a bytes-like object)
-    from TTS as input, and play the audio.
-    """
-
-    audio_data = audio_response.read()
-
-    # Encode audio data to base64
-    b64 = base64.b64encode(audio_data).decode("utf-8")
-
-    # Create a markdown string to embed the audio player with the base64 source
-    md = f"""
-        <audio controls autoplay style="width: 100%;">
-        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-        Your browser does not support the audio element.
-        </audio>
-        """
-
-    # Use Streamlit to render the audio player
-    st.markdown(md, unsafe_allow_html=True)
 
 
 def image_to_base64(image: Image) -> str:
@@ -677,56 +573,21 @@ def shorten_image(image: Image, max_pixels: int=1024) -> Image:
     return image
 
 
-def upload_image_files_return_urls(
-    type: List[str]=["jpg", "jpeg", "png", "bmp"]
-) -> List[str]:
-
+def images_to_urls(uploaded_files: List[UploadedFile]) -> List[str]:
     """
-    Upload image files, convert them to base64-encoded images, and
-    return the list of the resulting encoded images to be used
-    in place of URLs.
+    Convert uploaded image files to base64-encoded images.
     """
 
-    st.write("")
-    st.write("**Query Image(s)**")
-    source = st.radio(
-        label="Image selection",
-        options=("Uploaded", "From URL"),
-        horizontal=True,
-        label_visibility="collapsed",
-    )
     image_urls = []
-
-    if source == "Uploaded":
-        uploaded_files = st.file_uploader(
-            label="Upload images",
-            type=type,
-            accept_multiple_files=True,
-            label_visibility="collapsed",
-            key="image_upload_" + str(st.session_state.uploader_key),
-        )
-        if uploaded_files:
-            try:
-                for image_file in uploaded_files:
-                    image = Image.open(image_file)
-                    thumbnail = shorten_image(image, 300)
-                    st.image(thumbnail)
-                    image = shorten_image(image, 1024)
-                    image_urls.append(image_to_base64(image))
-            except UnidentifiedImageError as e:
-                st.error(f"An error occurred: {e}", icon="🚨")
-    else:
-        image_url = st.text_input(
-            label="URL of the image",
-            label_visibility="collapsed",
-            key="image_url_" + str(st.session_state.uploader_key),
-        )
-        if image_url:
-            if is_url(image_url):
-                st.image(image_url)
-                image_urls = [image_url]
-            else:
-                st.error("Enter a proper URL", icon="🚨")
+    try:
+        for image_file in uploaded_files:
+            image = Image.open(image_file)
+            thumbnail = shorten_image(image, 300)
+            st.image(thumbnail)
+            image = shorten_image(image, 1024)
+            image_urls.append(image_to_base64(image))
+    except UnidentifiedImageError as e:
+        st.error(f"An error occurred: {e}", icon="🚨")
 
     return image_urls
 
@@ -745,20 +606,6 @@ def fig_to_base64(fig: Figure) -> str:
         return image_to_base64(image)
 
 
-def is_url(text: str) -> bool:
-    """
-    Determine whether text is a URL or not.
-    """
-
-    regex = r"(http|https)://([\w_-]+(?:\.[\w_-]+)+)(:\S*)?"
-    p = re.compile(regex)
-    match = p.match(text)
-    if match:
-        return True
-    else:
-        return False
-
-
 def reset_conversation() -> None:
     """
     Reset the session_state variables for resetting the conversation.
@@ -767,24 +614,10 @@ def reset_conversation() -> None:
     st.session_state.history = []
     st.session_state.ai_role[1] = st.session_state.ai_role[0]
     st.session_state.prompt_exists = False
-    st.session_state.temperature[1] = st.session_state.temperature[0]
-    st.session_state.audio_response = None
     st.session_state.vector_store_message = None
     st.session_state.tool_names[1] = st.session_state.tool_names[0]
-    st.session_state.agent_type[1] = st.session_state.agent_type[0]
     st.session_state.retriever_tool = None
     st.session_state.uploader_key = 0
-
-
-def switch_between_apps() -> None:
-    """
-    Keep the chat settings when switching the mode.
-    """
-
-    st.session_state.temperature[1] = st.session_state.temperature[0]
-    st.session_state.ai_role[1] = st.session_state.ai_role[0]
-    st.session_state.tool_names[1] = st.session_state.tool_names[0]
-    st.session_state.agent_type[1] = st.session_state.agent_type[0]
 
 
 @tool
@@ -807,7 +640,8 @@ def set_tools() -> List[Tool]:
     """
     Set and return the tools for the agent. Tools that can be selected
     are internet_search, arxiv, wikipedia, python_repl, and retrieval.
-    A Bing Subscription Key or Google CSE ID is required for internet_search.
+    For searching the internet, a Google CSE ID is required together
+    with a Google API key.
     """
 
     class MySearchToolInput(BaseModel):
@@ -817,22 +651,19 @@ def set_tools() -> List[Tool]:
     wikipedia = load_tools(["wikipedia"])[0]
     # python_repl = PythonREPLTool()
 
-    tool_options = ["ArXiv", "Wikipedia", "Python_REPL", "Retrieval"]
+    tool_options = ["ArXiv", "Wikipedia", "Python_REPL"]
     tool_dictionary = {
         "ArXiv": arxiv,
         "Wikipedia": wikipedia,
         "Python_REPL": python_repl,
-        "Retrieval": st.session_state.retriever_tool
     }
 
-    if st.session_state.bing_subscription_validity:
-        search = BingSearchAPIWrapper()
-    elif st.session_state.google_cse_id_validity:
-        search = GoogleSearchAPIWrapper()
-    else:
-        search = None
+    if st.session_state.openai_key_validity or st.session_state.google_key_validity:
+        tool_options.insert(0, "Retrieval")
+        tool_dictionary["Retrieval"] = st.session_state.retriever_tool
 
-    if search is not None:
+    if st.session_state.google_cse_id_validity:
+        search = GoogleSearchAPIWrapper()
         internet_search = Tool(
             name="internet_search",
             description=(
@@ -857,20 +688,16 @@ def set_tools() -> List[Tool]:
     if "Search" not in tool_options:
         st.write(
             "<small>Tools are disabled when images are uploaded and "
-            "queried. To search the internet, obtain your Bing Subscription "
-            "Key [here](https://portal.azure.com/) or Google CSE ID "
-            "[here](https://programmablesearchengine.google.com/about/), "
-            "and enter it in the sidebar. Once entered, 'Search' will be "
-            "displayed in the list of tools. Note also that PythonREPL from "
-            "LangChain is still in the experimental phase, so caution is "
-            "advised.</small>",
+            "queried. To search the internet, obtain your Google CSE ID "
+            "[here](https://programmablesearchengine.google.com/about/). "
+            "Once the valid id is entered, 'Search' will be displayed "
+            "in the list of tools.</small>",
             unsafe_allow_html=True,
         )
     else:
         st.write(
             "<small>Tools are disabled when images are uploaded and "
-            "queried. Note also that PythonREPL from LangChain is still "
-            "in the experimental phase, so caution is advised.</small>",
+            "queried.</small>",
             unsafe_allow_html=True,
         )
     if "Retrieval" in tool_names:
@@ -888,14 +715,30 @@ def set_tools() -> List[Tool]:
     return tools
 
 
-def set_prompts(agent_type: Literal["Tool Calling", "ReAct"]) -> None:
+def print_list(char_list: List[str]) -> str:
     """
-    Set chat and agent prompts for two different types of agents:
-    Tool Calling and ReAct.
+    Print a list of characters in a human-readable format.
     """
 
-    if agent_type == "Tool Calling":
-        st.session_state.chat_prompt = ChatPromptTemplate.from_messages([
+    if len(char_list) > 2:
+        result = ", ".join(char_list[:-1]) + ", and " + char_list[-1]
+    elif len(char_list) == 2:
+        result = char_list[0] + " and " + char_list[1]
+    elif len(char_list) == 1:
+        result = char_list[0]
+    else:
+        result = ""
+
+    return result
+
+
+def set_prompts() -> None:
+    """
+    Set chat and agent prompts for tool calling agents
+    """
+
+    st.session_state.chat_prompt = ChatPromptTemplate.from_messages(
+        [
             (
                 "system",
                 f"{st.session_state.ai_role[0]} Your goal is to provide "
@@ -905,65 +748,29 @@ def set_prompts(agent_type: Literal["Tool Calling", "ReAct"]) -> None:
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{input}"),
-        ])
-        st.session_state.agent_prompt = ChatPromptTemplate.from_messages([
+        ]
+    )
+
+    tool_names = print_list(st.session_state.tool_names[0])
+    st.session_state.agent_prompt = ChatPromptTemplate.from_messages(
+        [
             (
                 "system",
-                f"{st.session_state.ai_role[0]} Your goal is to provide "
-                "answers to human inquiries. You should specify the source "
-                "of your answers, whether they are based on internet search "
-                "results ('internet_search'), scientific articles from "
-                "arxiv.org ('arxiv'), Wikipedia documents ('wikipedia'), "
-                "uploaded documents ('retriever'), or your general knowledge. "
-                "Use Markdown syntax and include relevant sources, such as "
-                "links (URLs), following MLA format. Should the information "
-                "not be available through internet searches, scientific "
-                "articles, Wikipedia documents, uploaded documents, or your "
-                "general knowledge, inform the human explicitly that the "
-                "answer could not be found. Also, if you use 'python_repl' "
-                "for computation, show the Python code that you run."
+                f"{st.session_state.ai_role[0]} "
+                "Your goal is to provide answers to human inquiries.\n\n"
+                "You have access to the following tool(s): "
+                f"{tool_names}\n\n"
+                "When giving your answers, tell the human what your response "
+                "is based on and which tools you use. Use Markdown syntax "
+                "and include relevant sources, such as links (URLs), following "
+                "MLA format. Should the information not be available, inform "
+                "the human explicitly that the answer could not be found. "
             ),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
             ("human", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
-    else:
-        st.session_state.chat_prompt = ChatPromptTemplate.from_template(
-            f"{st.session_state.ai_role[0]} "
-            "Your goal is to provide answers to human inquiries. "
-            "Should the information not be available, inform the human "
-            "explicitly that the answer could not be found.\n\n"
-            "{chat_history}\n\nHuman: {input}\n\n"
-            "AI: "
-        )
-        st.session_state.agent_prompt = ChatPromptTemplate.from_template(
-            f"{st.session_state.ai_role[0]} "
-            "Your goal is to provide answers to human inquiries. "
-            "When giving your answers, tell the human what your response "
-            "is based on and which tools you use. Use Markdown syntax "
-            "and include relevant sources, such as links (URLs), following "
-            "MLA format. Should the information not be available, inform "
-            "the human explicitly that the answer could not be found.\n\n"
-            "TOOLS:\n"
-            "------\n\n"
-            "You have access to the following tools:\n\n"
-            "{tools}\n\n"
-            "To use a tool, please use the following format:\n\n"
-            "Thought: Do I need to use a tool? Yes\n"
-            "Action: the action to take, should be one of [{tool_names}]\n"
-            "Action Input: the input to the action\n"
-            "Observation: the result of the action\n\n"
-            "When you have a response to say to the Human, "
-            "or if you do not need to use a tool, you MUST use "
-            "the format:\n\n"
-            "Thought: Do I need to use a tool? No\n"
-            "Final Answer: [your response here]\n\n"
-            "Begin!\n\n"
-            "Previous conversation history:\n\n"
-            "{chat_history}\n\n"
-            "New input: {input}\n"
-            "{agent_scratchpad}"
-        )
+        ]
+    )
 
 
 def print_conversation(no_of_msgs: Union[Literal["All"], int]) -> None:
@@ -986,14 +793,6 @@ def print_conversation(no_of_msgs: Union[Literal["All"], int]) -> None:
             for url in urls:
                 st.image(url)
 
-    # Play TTS
-    if (
-        st.session_state.model_type == "GPT Models from OpenAI"
-        and st.session_state.audio_response is not None
-    ):
-        play_audio(st.session_state.audio_response)
-        st.session_state.audio_response = None
-
 
 def serialize_messages(
     messages: List[Union[HumanMessage, AIMessage]]
@@ -1003,7 +802,7 @@ def serialize_messages(
     Serialize the list of messages into a list of dicts
     """
 
-    return [msg.dict() for msg in messages]
+    return [msg.model_dump() for msg in messages]
 
 
 def deserialize_messages(
@@ -1077,20 +876,20 @@ def create_text(model: str) -> None:
     """
 
     # initial system prompts
-    general_role = "You are a helpful AI assistant."
+    general_role = "You are a helpful assistant."
     english_teacher = (
-        "You are an AI English teacher who analyzes texts and corrects "
+        "You are an English teacher who analyzes texts and corrects "
         "any grammatical issues if necessary."
     )
     translator = (
-        "You are an AI translator who translates English into Korean "
+        "You are a translator who translates English into Korean "
         "and Korean into English."
     )
     coding_adviser = (
-        "You are an AI expert in coding who provides advice on "
+        "You are an expert in coding who provides advice on "
         "good coding styles."
     )
-    science_assistant = "You are an AI science assistant."
+    science_assistant = "You are a science assistant."
     roles = (
         general_role, english_teacher, translator,
         coding_adviser, science_assistant
@@ -1098,32 +897,12 @@ def create_text(model: str) -> None:
 
     with st.sidebar:
         st.write("")
-        type_options = ("Tool Calling", "ReAct")
-        st.write("**Agent Type**")
-        st.session_state.agent_type[0] = st.sidebar.radio(
-            label="Agent Type",
-            options=type_options,
-            index=type_options.index(st.session_state.agent_type[1]),
-            label_visibility="collapsed",
-        )
-        agent_type = st.session_state.agent_type[0]
-        if st.session_state.model_type == "GPT Models from OpenAI":
-            st.write("")
-            st.write("**Text to Speech**")
-            st.session_state.tts = st.radio(
-                label="TTS",
-                options=("Enabled", "Disabled", "Auto"),
-                # horizontal=True,
-                index=1,
-                label_visibility="collapsed",
-            )
-        st.write("")
         st.write("**Temperature**")
-        st.session_state.temperature[0] = st.slider(
+        temperature = st.slider(
             label="Temperature (higher $\Rightarrow$ more random)",
             min_value=0.0,
-            max_value=1.0,
-            value=st.session_state.temperature[1],
+            max_value=2.0,
+            value=1.0,
             step=0.1,
             format="%.1f",
             label_visibility="collapsed",
@@ -1163,10 +942,13 @@ def create_text(model: str) -> None:
         label="$~\:\,\,$Reset$~\:\,\,$",
         on_click=reset_conversation
     )
+    current_datetime = datetime.datetime.now()
+    datetime_string = current_datetime.strftime("%Y.%m.%d-%H.%M")
+    download_file_name = "conversation-" + datetime_string + ".json"
     c2.download_button(
         label="Download",
         data=json.dumps(serialize_messages(st.session_state.history), indent=4),
-        file_name="conversation_with_agent.json",
+        file_name=download_file_name,
         mime="application/json",
     )
     c3.button(
@@ -1179,25 +961,31 @@ def create_text(model: str) -> None:
         st.rerun()
 
     # Set the agent prompts and tools
-    set_prompts(agent_type)
+    set_prompts()
     tools = set_tools()
-
     image_urls = []
-    with st.sidebar:
-        image_urls = upload_image_files_return_urls()
 
-    if st.session_state.model_type == "GPT Models from OpenAI":
-        audio_input = input_from_mic()
-        if audio_input is not None:
-            query = audio_input
-            st.session_state.prompt_exists = True
-            st.session_state.mic_used = True
+    # Use your microphone
+    st.write("")
+    audio_file = st.audio_input(
+        label="Speak your query",
+        label_visibility="collapsed",
+        key="audio_upload_" + str(st.session_state.uploader_key)
+    )
+    if audio_file:
+        query = audio_to_text(audio_file)
+        st.session_state.prompt_exists = True
 
     # Use your keyboard
-    text_input = st.chat_input(placeholder="Enter your query")
-
-    if text_input:
-        query = text_input.strip()
+    text_and_files = st.chat_input(
+        placeholder="Enter your query",
+        accept_file="multiple",
+        file_type=["jpg", "jpeg", "png", "bmp"]
+    )
+    if text_and_files:
+        query = text_and_files.text.strip()
+        if text_and_files.files:
+            image_urls = images_to_urls(text_and_files.files)
         st.session_state.prompt_exists = True
 
     if st.session_state.prompt_exists:
@@ -1210,8 +998,7 @@ def create_text(model: str) -> None:
                 model=model,
                 tools=tools,
                 image_urls=image_urls,
-                temperature=st.session_state.temperature[0],
-                agent_type=agent_type,
+                temperature=temperature
             )
             fig = plt.gcf()
             if fig and fig.get_axes():
@@ -1219,16 +1006,6 @@ def create_text(model: str) -> None:
                 st.session_state.history[-1].additional_kwargs["image_urls"] = [
                     generated_image_url
                 ]
-        if (
-            st.session_state.model_type == "GPT Models from OpenAI"
-            and generated_text is not None
-        ):
-            # TTS under two conditions
-            cond1 = st.session_state.tts == "Enabled"
-            cond2 = st.session_state.tts == "Auto" and st.session_state.mic_used
-            if cond1 or cond2:
-                st.session_state.audio_response = perform_tts(generated_text)
-            st.session_state.mic_used = False
 
         st.session_state.prompt_exists = False
 
@@ -1237,55 +1014,44 @@ def create_text(model: str) -> None:
             st.rerun()
 
 
-def create_image(model: str) -> None:
+def show_guide() -> None:
     """
-    Generate image based on user description by calling openai_create_image().
+    Show the guide for using the LLM agent app.
     """
 
-    # Set the image size
-    with st.sidebar:
-        st.write("")
-        st.write("**Pixel size**")
-        image_size = st.radio(
-            label="$\\hspace{0.1em}\\texttt{Pixel size}$",
-            options=("1024x1024", "1792x1024", "1024x1792"),
-            # horizontal=True,
-            index=0,
-            label_visibility="collapsed",
-        )
+    st.info(
+        """
+        **Enter your API Keys in the sidebar**
 
-    st.write("")
-    st.write("##### Description for your image")
+        - For GPT models such as 'gpt-4o', you can obtain an OpenAI
+            API key from https://platform.openai.com/account/api-keys.
 
-    if st.session_state.image_url is not None:
-        st.info(st.session_state.image_description)
-        st.image(image=st.session_state.image_url, use_column_width=True)
-    
-    # Get an image description using the microphone
-    if st.session_state.model_type == "GPT Models from OpenAI":
-        audio_input = input_from_mic()
-        if audio_input is not None:
-            st.session_state.image_description = audio_input
-            st.session_state.prompt_exists = True
+        - For Claude models such as 'claude-3.5-sonnet', you can
+            obtain an Anthropic API key from
+            https://console.anthropic.com/settings/keys.
 
-    # Get an image description using the keyboard
-    text_input = st.chat_input(
-        placeholder="Enter a description for your image",
+        - For Gemini models such as 'gemini-1.5-flash', you can obtain
+            a Google API key from https://aistudio.google.com/app/apikey.
+
+        - For internet searches, obtain your Google CSE ID
+            [here](https://programmablesearchengine.google.com/about/)
+            together with your Google API key.
+        """
     )
-    if text_input:
-        st.session_state.image_description = text_input.strip()
-        st.session_state.prompt_exists = True
+    st.image("files/Streamlit_Agent_App.png")
+    st.info(
+        """
+        This app is coded by T.-W. Yoon, a professor of systems theory at
+        Korea University. Take a look at some of his other projects:
+        - [OpenAI Assistants](https://assistants.streamlit.app/)
+        - [Multi-Agent Debate](https://multi-agent-debate.streamlit.app/)
+        - [TWY's Playground](https://twy-playground.streamlit.app/)
+        - [Differential equations](https://diff-eqn.streamlit.app/)
+        """
+    )
 
-    if st.session_state.prompt_exists:
-        st.session_state.image_url = openai_create_image(
-            st.session_state.image_description, model, image_size
-        )
-        st.session_state.prompt_exists = False
-        if st.session_state.image_url is not None:
-            st.rerun()
 
-
-def create_text_image() -> None:
+def agents() -> None:
     """
     Generate text or image by using llm models like "gpt-4o".
     """
@@ -1312,243 +1078,134 @@ def create_text_image() -> None:
             options=("Your keys", "My keys"),
             label_visibility="collapsed",
             horizontal=True,
+            on_change=check_api_keys
         )
-
-        if choice_api == "Your keys":
+        if choice_api == "My keys":
             st.write("")
-            st.write("**Model Type**")
-            st.session_state.model_type = st.sidebar.radio(
-                label="Model type",
-                options=(
-                    "GPT Models from OpenAI",
-                    "Claude Models from Anthropic",
-                    "Gemini Models from Google",
-                ),
-                on_change=check_api_keys,
-                label_visibility="collapsed",
+            st.write("**Password**")
+            user_pin = st.text_input(
+                label="Enter password", type="password", label_visibility="collapsed"
             )
+            if user_pin == st.secrets["USER_PIN"]:
+                anthropic_api_key = st.secrets["ANTHROPIC_API_KEY"]
+                openai_api_key = st.secrets["OPENAI_API_KEY"]
+                google_api_key = st.secrets["GOOGLE_API_KEY"]
+                google_cse_id = st.secrets["GOOGLE_CSE_ID"]
+                os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
+                current_date = datetime.datetime.now().date()
+                date_string = str(current_date)
+                os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
+            else:
+                anthropic_api_key = ""
+                openai_api_key = ""
+                google_api_key = ""
+                google_cse_id = ""
+                st.info("Enter the correct password")
+        else:
             st.write("")
-            if st.session_state.model_type in (
-                "GPT Models from OpenAI", "Claude Models from Anthropic"
-            ):
-                validity = "(Verified)" if st.session_state.ready else ""
-                if st.session_state.model_type == "GPT Models from OpenAI":
-                    st.write(
-                        "**OpenAI API Key** ",
-                        f"<small>:blue[{validity}]</small>",
-                        unsafe_allow_html=True
-                    )
-                    openai_api_key = st.text_input(
-                        label="OpenAI API Key",
-                        type="password",
-                        on_change=check_api_keys,
-                        label_visibility="collapsed",
-                    )
-                else:
-                    st.write(
-                        "**Anthropic API Key** ",
-                        f"<small>:blue[{validity}]</small>",
-                        unsafe_allow_html=True
-                    )
-                    anthropic_api_key = st.text_input(
-                        label="Anthropic API Key",
-                        type="password",
-                        on_change=check_api_keys,
-                        label_visibility="collapsed",
-                    )
-                if st.session_state.bing_subscription_validity:
-                    validity = "(Verified)"
-                else:
-                    validity = ""
+            st.write("**API keys**")
+            with st.expander("**Enter your keys**", expanded=False):
                 st.write(
-                    "**Bing Subscription Key** ",
-                    f"<small>:blue[{validity}]</small>",
+                    f"<small>$\:\!$Anthropic API Key</small>",
                     unsafe_allow_html=True
                 )
-                bing_subscription_key = st.text_input(
-                    label="Bing Subscription Key",
+                anthropic_api_key = st.text_input(
+                    label="Anthropic API Key",
                     type="password",
-                    value="",
-                    on_change=check_api_keys,
                     label_visibility="collapsed",
+                    on_change=check_api_keys
                 )
-            else:
-                validity = "(Verified)" if st.session_state.ready else ""
                 st.write(
-                    "**Google API Key** ",
-                    f"<small>:blue[{validity}]</small>",
+                    f"<small>$\:\!$OpenAI API Key</small>",
+                    unsafe_allow_html=True
+                )
+                openai_api_key = st.text_input(
+                    label="OpenAI API Key",
+                    type="password",
+                    label_visibility="collapsed",
+                    on_change=check_api_keys
+                )
+                st.write(
+                    f"<small>$\:\!$Google API Key</small>",
                     unsafe_allow_html=True
                 )
                 google_api_key = st.text_input(
                     label="Google API Key",
                     type="password",
-                    on_change=check_api_keys,
                     label_visibility="collapsed",
+                    on_change=check_api_keys
                 )
-                if st.session_state.google_cse_id_validity:
-                    validity = "(Verified)"
-                else:
-                    validity = ""
                 st.write(
-                    "**Google CSE ID** ",
-                    f"<small>:blue[{validity}]</small>",
+                    f"<small>$\:\!$Google CSE ID</small>",
                     unsafe_allow_html=True
                 )
                 google_cse_id = st.text_input(
                     label="Google CSE ID",
                     type="password",
-                    value="",
-                    on_change=check_api_keys,
                     label_visibility="collapsed",
+                    on_change=check_api_keys
                 )
-            authentication = True
-        else:
-            openai_api_key = st.secrets["OPENAI_API_KEY"]
-            anthropic_api_key = st.secrets["ANTHROPIC_API_KEY"]
-            bing_subscription_key = st.secrets["BING_SUBSCRIPTION_KEY"]
-            google_api_key = st.secrets["GOOGLE_API_KEY"]
-            google_cse_id = st.secrets["GOOGLE_CSE_ID"]
-            langchain_api_key = st.secrets["LANGCHAIN_API_KEY"]
-            stored_pin = st.secrets["USER_PIN"]
-            st.write("**Password**")
-            user_pin = st.text_input(
-                label="Enter password", type="password", label_visibility="collapsed"
-            )
-            st.session_state.model_type = "GPT Models from OpenAI"
-            authentication = user_pin == stored_pin
 
-        os.environ["BING_SEARCH_URL"] = "https://api.bing.microsoft.com/v7.0/search"
-
-    if authentication:
         if not st.session_state.ready:
-            if choice_api == "My keys":
-                os.environ["OPENAI_API_KEY"] = openai_api_key
-                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
-                os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
-                st.session_state.bing_subscription_validity = True
-                st.session_state.openai = OpenAI()
-                os.environ["GOOGLE_API_KEY"] = google_api_key
-                os.environ["GOOGLE_CSE_ID"] = google_cse_id
-                st.session_state.google_cse_id_validity = True
-                st.session_state.ready = True
-                os.environ["LANGCHAIN_API_KEY"] = langchain_api_key
-                current_date = datetime.datetime.now().date()
-                date_string = str(current_date)
-                os.environ["LANGCHAIN_PROJECT"] = "llm_agent_" + date_string
-            else:
-                if st.session_state.model_type in (
-                    "GPT Models from OpenAI", "Claude Models from Anthropic"
-                ):
-                    if st.session_state.model_type == "GPT Models from OpenAI":
-                        if is_openai_api_key_valid(openai_api_key):
-                            os.environ["OPENAI_API_KEY"] = openai_api_key
-                            st.session_state.openai = OpenAI()
-                            st.session_state.ready = True
-                    else:
-                        if is_anthropic_api_key_valid(anthropic_api_key):
-                            os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
-                            st.session_state.ready = True
-                    if st.session_state.ready:
-                        if is_bing_subscription_key_valid(bing_subscription_key):
-                            os.environ["BING_SUBSCRIPTION_KEY"] = bing_subscription_key
-                            st.session_state.bing_subscription_validity = True
-                        else:
-                            st.session_state.bing_subscription_validity = False
-                else:
-                    if is_google_api_key_valid(google_api_key):
-                        os.environ["GOOGLE_API_KEY"] = google_api_key
-                        st.session_state.ready = True
-                        if are_google_api_key_cse_id_valid(
-                            google_api_key, google_cse_id
-                        ):
-                            os.environ["GOOGLE_CSE_ID"] = google_cse_id
-                            st.session_state.google_cse_id_validity = True
-                        else:
-                            st.session_state.google_cse_id_validity = False
+            # Check the validity of the API keys
+            check_anthropic_key(anthropic_api_key)
+            check_openai_key(openai_api_key)
+            check_google_key(google_api_key)
+            check_google_cse_id(google_cse_id)
 
-            if st.session_state.ready:
-                st.rerun()
-            else:
-                st.info(
-                    """
-                    **Enter your API Keys in the sidebar**
-
-                    - For GPT models such as 'gpt-4o', you can obtain an OpenAI
-                      API key from https://platform.openai.com/account/api-keys.
-
-                    - For Claude models such as 'claude-3.5-sonnet', you can
-                      obtain an Anthropic API key from
-                      https://console.anthropic.com/settings/keys.
-
-                    - For Gemini models such as 'gemini-1.5-flash', you can obtain
-                      a Google API key from https://aistudio.google.com/app/apikey.
-
-                    - For internet searches, obtain your Bing Subscription Key
-                      [here](https://portal.azure.com/) or Google CSE ID
-                      [here](https://programmablesearchengine.google.com/about/).
-                      If you do not plan to search the internet, there is no need
-                      to enter your Bing Subscription key or Google CSE ID.
-                    """
-                )
-                st.image("files/Streamlit_Agent_App.png")
-                st.info(
-                    """
-                    This app is coded by T.-W. Yoon, a professor of systems theory at
-                    Korea University. Take a look at some of his other projects:
-                    - [OpenAI Assistants](https://assistants.streamlit.app/)
-                    - [Multi-Agent Debate](https://multi-agent-debate.streamlit.app/)
-                    - [TWY's Playground](https://twy-playground.streamlit.app/)
-                    - [Differential equations](https://diff-eqn.streamlit.app/)
-                    """
-                )
-                st.stop()
-    else:
-        st.info("**Enter the correct password in the sidebar**")
-        st.stop()
+            st.session_state.ready = (
+                st.session_state.anthropic_key_validity or
+                st.session_state.google_key_validity or
+                st.session_state.openai_key_validity
+            )
 
     gpt_models = ("gpt-4o-mini", "gpt-4o")
-    claude_models = ("claude-3-5-haiku-latest", "claude-3-5-sonnet-latest")
-    gemini_models = ("gemini-1.5-flash", "gemini-1.5-pro")
+    claude_models = (
+        "claude-3-5-haiku", "claude-3-5-sonnet", "claude-sonnet-4", "claude-opus-4"
+    )
+    gemini_models = ("gemini-2.5-flash", "gemini-2.5-pro")
 
-    with st.sidebar:
-        if choice_api == "My keys":
-            st.write("")
-            st.write("**LangSmith Tracing**")
-            langsmith = st.radio(
-                label="LangSmith Tracing",
-                options=("On", "Off"),
-                label_visibility="collapsed",
-                index=1,
-                horizontal=True
-            )
-            os.environ["LANGCHAIN_TRACING_V2"] = (
-                "true" if langsmith == "On" else "false"
-            )
-        st.write("")
-        st.write("**Model**")
-        if choice_api == "My keys":
-            model_options = gpt_models + claude_models + gemini_models
-            model_options += ("dall-e-3",)
-        else:
-            if st.session_state.model_type == "GPT Models from OpenAI":
-                model_options = gpt_models + ("dall-e-3",)
-            elif st.session_state.model_type == "Claude Models from Anthropic":
-                model_options = claude_models
-            else:
-                model_options = gemini_models
+    if choice_api == "My keys":
+        st.sidebar.write("")
+        st.sidebar.write("**LangSmith Tracing**")
+        langsmith = st.sidebar.radio(
+            label="LangSmith Tracing",
+            options=("On", "Off"),
+            label_visibility="collapsed",
+            index=1,
+            horizontal=True
+        )
+        os.environ["LANGCHAIN_TRACING_V2"] = (
+            "true" if langsmith == "On" else "false"
+        )
+    model_options = ()
+    if st.session_state.anthropic_key_validity:
+        model_options += claude_models
+    if st.session_state.openai_key_validity:
+        model_options += gpt_models
+    if st.session_state.google_key_validity:
+        model_options += gemini_models
 
-        model = st.radio(
+    if model_options:
+        st.sidebar.write("")
+        st.sidebar.write("**Model**")
+        model = st.sidebar.radio(
             label="Models",
             options=model_options,
             label_visibility="collapsed",
-            index=1,
-            on_change=switch_between_apps,
+            index=0,
         )
-
-    if model == "dall-e-3":
-        create_image(model)
-    else:
+        if model == "claude-3-5-haiku":
+            model += "-latest"
+        elif model == "claude-3-5-sonnet":
+            model += "-latest"
+        elif model == "claude-sonnet-4":
+            model += "-20250514"
+        elif model == "claude-opus-4":
+            model += "-20250514"
         create_text(model)
+    else:
+        show_guide()
 
     with st.sidebar:
         st.write("---")
@@ -1560,7 +1217,9 @@ def create_text_image() -> None:
             "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
             unsafe_allow_html=True,
         )
+        if st.button("Finish"):
+            os._exit(0)
 
 
 if __name__ == "__main__":
-    create_text_image()
+    agents()
