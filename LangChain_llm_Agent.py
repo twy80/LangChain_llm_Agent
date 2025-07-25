@@ -663,7 +663,10 @@ def set_tools() -> List[Tool]:
         tool_dictionary["Retrieval"] = st.session_state.retriever_tool
 
     if st.session_state.google_cse_id_validity:
-        search = GoogleSearchAPIWrapper()
+        search = GoogleSearchAPIWrapper(
+            google_api_key=os.environ["GOOGLE_API_KEY"],
+            google_cse_id=os.environ["GOOGLE_CSE_ID"]
+        )
         internet_search = Tool(
             name="internet_search",
             description=(
@@ -1217,8 +1220,6 @@ def agents() -> None:
             "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
             unsafe_allow_html=True,
         )
-        if st.button("Finish"):
-            os._exit(0)
 
 
 if __name__ == "__main__":
