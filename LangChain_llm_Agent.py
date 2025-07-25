@@ -1032,7 +1032,7 @@ def show_guide() -> None:
         - For Gemini models such as 'Gemini-2.5-Pro', you can obtain a Google API
           key from https://aistudio.google.com/app/apikey.
 
-        - For searching the internet, obtain a Google CSE ID from
+        - For searching the internet, use a Google CSE ID obtained from
           https://programmablesearchengine.google.com/about/ along with your
           Google API key.
         """
