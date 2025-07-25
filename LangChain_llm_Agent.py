@@ -904,8 +904,8 @@ def create_text(model: str) -> None:
         temperature = st.slider(
             label="Temperature (higher $\Rightarrow$ more random)",
             min_value=0.0,
-            max_value=2.0,
-            value=1.0,
+            max_value=1.0,
+            value=0.7,
             step=0.1,
             format="%.1f",
             label_visibility="collapsed",
