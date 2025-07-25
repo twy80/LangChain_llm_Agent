@@ -13,7 +13,7 @@
   - For Gemini models such as 'gemini-2.5-pro', your Google API key is needed.
     You can obtain an API key from https://aistudio.google.com/app/apikey.
 
-  - For internet searches, obtain Google CSE ID
+  - For searching the internet, obtain Google CSE ID
     [here](https://programmablesearchengine.google.com/about/) together with
     your Google API key.
 
