@@ -662,7 +662,7 @@ def set_tools() -> List[Tool]:
         tool_options.insert(0, "Retrieval")
         tool_dictionary["Retrieval"] = st.session_state.retriever_tool
 
-    if st.session_state.google_cse_id_validity:
+    if st.session_state.google_key_validity and st.session_state.google_cse_id_validity:
         search = GoogleSearchAPIWrapper()
         internet_search = Tool(
             name="internet_search",
@@ -1023,19 +1023,18 @@ def show_guide() -> None:
         """
         **Enter your API Keys in the sidebar**
 
-        - For GPT models such as 'gpt-4o', you can obtain an OpenAI
-            API key from https://platform.openai.com/account/api-keys.
+        - For the OpenAI models such as 'GPT-4o', you can obtain an OpenAI API
+          key from https://platform.openai.com/account/api-keys.
 
-        - For Claude models such as 'claude-3.5-sonnet', you can
-            obtain an Anthropic API key from
-            https://console.anthropic.com/settings/keys.
+        - For Claude models such as 'Claude-4-Sonnet', you can obtain an Anthropic
+          API key from https://console.anthropic.com/settings/keys.
 
-        - For Gemini models such as 'gemini-1.5-flash', you can obtain
-            a Google API key from https://aistudio.google.com/app/apikey.
+        - For Gemini models such as 'Gemini-2.5-Pro', you can obtain a Google API
+          key from https://aistudio.google.com/app/apikey.
 
-        - For internet searches, obtain your Google CSE ID
-            [here](https://programmablesearchengine.google.com/about/)
-            together with your Google API key.
+        - For searching the internet, you can obtain a Google CSE ID from
+          https://programmablesearchengine.google.com/about/ along with your
+          Google API key.
         """
     )
     st.image("files/Streamlit_Agent_App.png")
