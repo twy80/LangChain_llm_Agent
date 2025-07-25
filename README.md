@@ -1,20 +1,20 @@
 # [LangChain_LLM_Agent](https://langchain-llm-agent.streamlit.app/)
 
-* This app presents a tool calling agent. The supported models are claude-3-5-haiku,
-  claude-3-5-sonnet, claude-sonnet-4, & claude-opus-4 from Anthropic, gpt-4o-mini
-  & gpt-4o from OpenAI, and gemini-2.5-flash & gemini-2.5-pro from Google.
+* This app presents a tool calling agent. The supported models are Claude-3.5-Haiku,
+  Claude-3.5-Sonnet, Claude-Sonnet-4, and Claude-Opus-4 from Anthropic;
+  GPT-4o-mini and GPT-4o from OpenAI; and Gemini-2.5-Flash and Gemini-2.5-Pro from Google.
   
-  - For the OpenAI models such as 'gpt-4o', your OpenAI API key is needed. You can obtain
+  - For the OpenAI models such as 'GPT-4o', your OpenAI API key is needed. You can obtain
     an API key from https://platform.openai.com/account/api-keys.
 
-  - For Claude models such as 'claude-4-sonnet', your Anthropic API key is needed.
+  - For Claude models such as 'Claude-4-Sonnet', your Anthropic API key is needed.
     You can obtain an API key from https://console.anthropic.com/settings/keys.
 
-  - For Gemini models such as 'gemini-2.5-pro', your Google API key is needed.
+  - For Gemini models such as 'Gemini-2.5-Pro', your Google API key is needed.
     You can obtain an API key from https://aistudio.google.com/app/apikey.
 
-  - For searching the internet, obtain Google CSE ID
-    [here](https://programmablesearchengine.google.com/about/) together with
+  - For searching the internet, obtain a Google CSE ID
+    [here](https://programmablesearchengine.google.com/about/) along with
     your Google API key.
 
   - Temperature can be set by the user.
