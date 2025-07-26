@@ -1192,7 +1192,7 @@ def agents() -> None:
             label="Models",
             options=model_options,
             label_visibility="collapsed",
-            index=0,
+            index=1,
         )
         if model == "claude-3-5-haiku":
             model += "-latest"
