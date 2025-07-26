@@ -662,7 +662,7 @@ def set_tools() -> List[Tool]:
         tool_options.insert(0, "Retrieval")
         tool_dictionary["Retrieval"] = st.session_state.retriever_tool
 
-    if st.session_state.google_key_validity and st.session_state.google_cse_id_validity:
+    if st.session_state.google_cse_id_validity:
         search = GoogleSearchAPIWrapper()
         internet_search = Tool(
             name="internet_search",
