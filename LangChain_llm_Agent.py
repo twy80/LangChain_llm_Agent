@@ -1152,11 +1152,13 @@ def agents() -> None:
             check_google_key(google_api_key)
             check_google_cse_id(google_cse_id)
 
-            if st.session_state.ready := (
-                st.session_state.anthropic_key_validity or
-                st.session_state.google_key_validity or
-                st.session_state.openai_key_validity
-            ):
+            if (
+                    st.session_state.ready := (
+                    st.session_state.anthropic_key_validity or
+                    st.session_state.google_key_validity or
+                    st.session_state.openai_key_validity
+                )
+            )
                 st.rerun()
 
     gpt_models = ("gpt-4o-mini", "gpt-4o")
