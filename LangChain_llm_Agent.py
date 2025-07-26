@@ -1157,8 +1157,6 @@ def agents() -> None:
                 st.session_state.google_key_validity or
                 st.session_state.openai_key_validity
             )
-            if st.session_state.ready:
-                st.rerun()
 
     gpt_models = ("gpt-4o-mini", "gpt-4o")
     claude_models = (
