@@ -282,16 +282,6 @@ def show_guide() -> None:
           <https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management>.
         """
     )
-    st.info(
-        """
-        This app is coded by T.-W. Yoon, a professor of systems theory at
-        Korea University. Take a look at some of his other projects:
-        - [OpenAI Assistants](https://assistants.streamlit.app/)
-        - [Multi-Agent Debate](https://multi-agent-debate.streamlit.app/)
-        - [TWY's Playground](https://twy-playground.streamlit.app/)
-        - [Differential equations](https://diff-eqn.streamlit.app/)
-        """
-    )
 
 
 def main() -> None:
