@@ -268,10 +268,10 @@ def show_guide() -> None:
           <https://programmablesearchengine.google.com/about/> along with
           your Google API key.
 
-        - Temperature can be set by the user.
-
         - In addition to the search tool from Google, ArXiv, Wikipedia,
           Retrieval (RAG), and pythonREPL are supported.
+
+        - Temperature can be set by the user.
 
         - Tracing LLM messages is possible using LangSmith if you download the source code
           and run it on your machine or server.  For this, you need a
