@@ -24,7 +24,7 @@ GPT-4o-mini and GPT-4o from OpenAI; and Gemini-2.5-Flash and Gemini-2.5-Pro from
 
 - Tracing LLM messages is possible using LangSmith if you download the source code
   and run it on your machine or server.  For this, you need a
-  LangChain API key that can be obtained <https://smith.langchain.com/settings>.
+  LangChain API key that can be obtained from <https://smith.langchain.com/settings>.
 
 - When running the code on your machine or server, you can use st.secrets to keep and
     fetch your API keys as environments variables. For such secrets management, see
