@@ -11,7 +11,7 @@ The script integrates with OpenAI and Google AI embeddings, and uses FAISS
 for vector storage.
 """
 
-import os, time
+import os
 from functools import partial
 from tempfile import NamedTemporaryFile
 from typing import List, Annotated, Optional
@@ -180,8 +180,10 @@ def set_tools() -> List[Tool]:
         tool_dictionary["Retrieval"] = st.session_state.retriever_tool
 
     if st.session_state.google_cse_id_validity:
-        time.sleep(0.5)
-        search = GoogleSearchAPIWrapper()
+        search = GoogleSearchAPIWrapper(
+            google_api_key=os.environ["GOOGLE_API_KEY"],
+            google_cse_id=os.environ["GOOGLE_CSE_ID"]
+        )
         internet_search = Tool(
             name="internet_search",
             description=(
