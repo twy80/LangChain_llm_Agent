@@ -447,8 +447,6 @@ def main() -> None:
             "<small>[Differential equations](https://diff-eqn.streamlit.app/)</small>",
             unsafe_allow_html=True,
         )
-        if st.button("Finish"):
-            os._exit(0)
 
 
 if __name__ == "__main__":
