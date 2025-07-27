@@ -251,23 +251,37 @@ def show_guide() -> None:
 
     st.info(
         """
-        **Enter your API Keys in the sidebar**
+        This app presents a tool calling agent. The supported models are Claude-3.5-Haiku,
+        Claude-3.5-Sonnet, Claude-Sonnet-4, and Claude-Opus-4 from Anthropic;
+        GPT-4o-mini and GPT-4o from OpenAI; and Gemini-2.5-Flash and Gemini-2.5-Pro from Google.
+        
+        - For the OpenAI models such as 'GPT-4o', your OpenAI API key is needed. You can obtain
+          an API key from <https://platform.openai.com/account/api-keys>.
 
-        - For the OpenAI models such as 'GPT-4o', you can obtain an OpenAI API
-          key from https://platform.openai.com/account/api-keys.
+        - For Claude models such as 'Claude-4-Sonnet', your Anthropic API key is needed.
+          You can obtain an API key from <https://console.anthropic.com/settings/keys>.
 
-        - For Claude models such as 'Claude-4-Sonnet', you can obtain an Anthropic
-          API key from https://console.anthropic.com/settings/keys.
-
-        - For Gemini models such as 'Gemini-2.5-Pro', you can obtain a Google API
-          key from https://aistudio.google.com/app/apikey.
+        - For Gemini models such as 'Gemini-2.5-Pro', your Google API key is needed.
+          You can obtain an API key from <https://aistudio.google.com/app/apikey>.
 
         - For searching the internet, use a Google CSE ID obtained from
-          https://programmablesearchengine.google.com/about/ along with your
-          Google API key.
+          <https://programmablesearchengine.google.com/about/> along with
+          your Google API key.
+
+        - Temperature can be set by the user.
+
+        - In addition to the search tool from Google, ArXiv, Wikipedia,
+          Retrieval (RAG), and pythonREPL are supported.
+
+        - Tracing LLM messages is possible using LangSmith if you download the source code
+          and run it on your machine or server.  For this, you need a
+          LangChain API key that can be obtained from <https://smith.langchain.com/settings>.
+
+        - When running the code on your machine or server, you can use st.secrets to keep and
+          fetch your API keys as environments variables. For such secrets management, see
+          <https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management>.
         """
     )
-    st.image("files/Streamlit_Agent_App.png")
     st.info(
         """
         This app is coded by T.-W. Yoon, a professor of systems theory at
