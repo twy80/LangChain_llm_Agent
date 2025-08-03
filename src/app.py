@@ -69,7 +69,7 @@ def set_prompts() -> None:
                 "system",
                 f"{st.session_state.ai_role[0]} Your goal is to provide "
                 "answers to the user's inquiries. If the information is "
-                "not available, inform the human explicitly that "
+                "not available, inform the user explicitly that "
                 "the answer could not be found."
             ),
             MessagesPlaceholder(variable_name="chat_history"),
