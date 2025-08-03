@@ -68,8 +68,8 @@ def set_prompts() -> None:
             (
                 "system",
                 f"{st.session_state.ai_role[0]} Your goal is to provide "
-                "answers to human inquiries. Should the information not "
-                "be available, inform the human explicitly that "
+                "answers to the user's inquiries. If the information is "
+                "not available, inform the human explicitly that "
                 "the answer could not be found."
             ),
             MessagesPlaceholder(variable_name="chat_history"),
@@ -83,14 +83,16 @@ def set_prompts() -> None:
             (
                 "system",
                 f"{st.session_state.ai_role[0]} "
-                "Your goal is to provide answers to human inquiries.\n\n"
+                "Your goal is to provide answers to the user's inquiries.\n\n"
                 "You have access to the following tool(s): "
                 f"{tool_names}\n\n"
-                "When giving your answers, tell the human what your response "
+                "Call tool(s) only when the user's request requires accessing external "
+                "data or performing actions that you cannot do with your built-in "
+                "knowledge. When giving your answers, tell the user what your response "
                 "is based on and which tools you use. Use Markdown syntax "
                 "and include relevant sources, such as links (URLs), following "
-                "MLA format. Should the information not be available, inform "
-                "the human explicitly that the answer could not be found. "
+                "MLA format. If the information is not available, inform "
+                "the user explicitly that the answer could not be found. "
             ),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
             ("human", "{input}"),
